@@ -399,7 +399,7 @@ class X3_Model extends X3_Component implements ArrayAccess{
     }
 
     public function save() {
-        $this->beforeSave();
+        $this->module->beforeSave();
         if(!$this->validate()) {
             return false;
         }
@@ -407,12 +407,12 @@ class X3_Model extends X3_Component implements ArrayAccess{
             //TODO: primary key attribute orienatation
             //TODO: Can't UPDATE without primary key if no WHERE;
             $rez = $this->update($this->attributes)->where("`id`='".$this->attributes['id']."'")->execute();
-            $this->afterSave();
+            $this->module->afterSave();
             return $rez;
         }else{
             $rez = $this->insert($this->attributes)->execute();
             $this->attributes['id'] = mysql_insert_id();
-            $this->afterSave();
+            $this->module->afterSave();
             return $rez;
         }
         
@@ -420,6 +420,10 @@ class X3_Model extends X3_Component implements ArrayAccess{
 
     public function getErrors() {
         return $this->_errors;
+    }
+
+    public function getModule() {
+        return $this->module;
     }
 
 /**

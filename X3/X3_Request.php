@@ -70,5 +70,15 @@ class X3_Request extends X3_Component {
         }
     }
 
+    public function isActive($url,$strict=false) {
+        if($strict && $url == $_SERVER['REQUEST_URI']) return true;
+        elseif($strict) return false;
+        $trueurl = trim($url,'/');
+        $trueurl = str_replace(".$this->suffix", '', $trueurl);
+        $trueurl = preg_replace("#\?(.*)#", '', $trueurl);
+        if($this->url==$trueurl) return true;
+        return false;
+    }
+
 }
 ?>

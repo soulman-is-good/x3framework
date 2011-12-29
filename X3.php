@@ -115,14 +115,16 @@ class X3 {
      *
      * @param string $path path or alias to the file to be imported
      */
-    public static function import($path) {
+    public static function import($path,$noautoload=false) {
         $path = self::$_app->getPathFromAlias($path);
         if(is_file($path)) {
             /*if(($i=  strrpos($path, DIRECTORY_SEPARATOR))!==false){
                 $dir = substr($path, 0,$i) . DIRECTORY_SEPARATOR;
                 set_include_path ($dir);
             }*/
+            if($noautoload) spl_autoload_unregister(array('X3', 'autoload'));
             require $path;
+            if($noautoload) spl_autoload_register(array('X3', 'autoload'));
         }
         else throw new X3_Exception ("Wrong import path. File '$path' does not exist!", X3::FILE_IO_ERROR);
     }

@@ -35,8 +35,6 @@ class X3_Module_Table extends X3_Module implements Iterator {
 
     public function __construct($action = null) {
         if ($this->tableName != null && !empty($this->_fields)) {
-            $this->addTrigger('beforeSave');
-            $this->addTrigger('afterSave');
             $this->table = new X3_Model($this->tableName,$this);
         }else{
             if($this->tableName==null)
@@ -66,6 +64,9 @@ class X3_Module_Table extends X3_Module implements Iterator {
 
     public function beforeValidate(){return true;}
     public function afterValidate(){return true;}
+
+    public function beforeSave(){return true;}
+    public function afterSave(){return true;}
 
     public function getTable() {
         return $this->table;
@@ -103,6 +104,7 @@ class X3_Module_Table extends X3_Module implements Iterator {
 
     function rewind() {
         $this->position = 0;
+        $this->table = $this->tables[$this->position];
     }
 
     function current() {
@@ -115,6 +117,8 @@ class X3_Module_Table extends X3_Module implements Iterator {
 
     function next() {
         ++$this->position;
+        if(isset($this->tables[$this->position]))
+            $this->table = $this->tables[$this->position];
     }
 
     function valid() {
