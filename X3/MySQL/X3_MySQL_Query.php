@@ -19,35 +19,35 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
         parent::__construct($params);
     }
 
-    public function select($query) {
+    public function select($query='*') {
         $this->action = "SELECT";        
         $this->select = $query;
         return $this;
     }
 
-    public function limit($query) {
+    public function limit($query='-1') {
         if(!is_numeric($query)) return $this;
         $this->limit = (int)$query;
         return $this;
     }
 
-    public function offset($query) {
+    public function offset($query='1') {
         if(!is_numeric($query)) return $this;
         $this->offset = (int)$query;
         return $this;
     }
 
-    public function order($query) {
+    public function order($query='id') {
         $this->order = $query;
         return $this;
     }
 
-    public function group($query) {
+    public function group($query='id') {
         $this->group = $query;
         return $this;
     }
 
-    public function page($query) {
+    public function page($query='1') {
         if(!is_numeric($query)) return $this;
         //TODO: class may by stdClass
         $m = $this->class;
@@ -59,7 +59,7 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
         return $this;
     }
 
-    public function where($query) {
+    public function where($query='1') {
         //TODO: check if wrong query;
         if(is_array($query)){
             $query = array_shift($query);
@@ -156,21 +156,21 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
         $models = $this->asArray($single);
         $module = $this->class;
         if($single) {
-            $module = X3_Module::getInstance($module);
             if(empty($models)) {
-                return $module;
+                return NULL;
             }
+            $module = X3_Module::getInstance($module);
             $module->table->accuire($models);
             return $module;
         }
         if(empty($models)) return array();
         $module = X3_Module::getInstance($module);
-        if(!isset($module->table['id']))
-            $module->table->accuire($models[0]);
         foreach ($models as $i=>$model) {
             $tmp = new X3_Model($module->tableName,$module);
             $tmp->accuire($model);
             $module->push($tmp);
+            if($i==0)
+                $module->table->accuire($tmp);
         }
         return $module;
     }
@@ -203,5 +203,35 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
         $sql = $this->buildSQL();
         return X3::app()->db->query($sql);
     }
+
+    public function formQuery($params=array()){
+        $query = "";
+        $dub = $params;
+        for($v = current($params);$v!==false;$v = next($params)){
+            $nv = next($dub);
+            $k = key($params);
+            $v = current($params);
+            if(is_array($v)){
+                if($nv!==false){
+                    if(is_array($nv))
+                        $query .= "(" . $this->formQuery($v) . ") OR ";
+                    else
+                        $query .= "(" . $this->formQuery($v) . ") AND ";
+                }else
+                    $query .= "(" . $this->formQuery($v) . ")";
+            }else{
+                if(is_numeric($k)){
+                    $k = $v;
+                    $v = '1';
+                }
+                if($nv!=false)
+                    $query .= "`$k`='$v' AND ";
+                else
+                    $query .= "`$k`='$v'";
+            }
+        }
+        return $query;
+    }
 }
+array(array('id'=>'1','user'=>'LOLO',array(array('a'=>'1'),array('b'=>'1')),'status'),array('hello'=>'world','bye'=>'world'))
 ?>

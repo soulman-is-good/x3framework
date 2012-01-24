@@ -31,7 +31,7 @@ class X3_Session_File extends X3_Component implements X3_Interface_Session, Arra
     }
 
     public function __destruct() {
-        $this->close();
+        session_write_close();
     }
 
     public function open() {
@@ -41,6 +41,14 @@ class X3_Session_File extends X3_Component implements X3_Interface_Session, Arra
 
     public function close() {
         session_write_close();
+    }
+
+    public function erase() {
+        session_destroy();
+    }
+
+    public function regenerate($bDelete=false) {
+        session_regenerate_id($bDelete);
     }
 
     public function write($key, $value) {

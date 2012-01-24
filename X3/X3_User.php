@@ -77,7 +77,7 @@ class X3_User extends X3_Component {
                     unset(self::$session[$key]);
                 }
             }
-            self::$session->close();
+            self::$session->erase();
             self::$session = null;
             return true;
         }else

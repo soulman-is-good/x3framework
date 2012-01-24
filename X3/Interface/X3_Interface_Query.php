@@ -9,19 +9,19 @@
  * @author Soul_man
  */
 interface X3_Interface_Query {
-    public function select($query);
+    public function select($query='*');
 
-    public function limit($query);
+    public function limit($query='-1');
 
-    public function offset($query);
+    public function offset($query='1');
 
-    public function order($query);
+    public function order($query='id');
 
-    public function group($query);
+    public function group($query='id');
 
-    public function page($query);
+    public function page($query='1');
 
-    public function where($query);
+    public function where($query='1');
 
     public function update($field,$value = null);
 

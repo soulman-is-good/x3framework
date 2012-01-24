@@ -9,8 +9,8 @@
  *
  * @author Soul_man
  */
-class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
-    public $tableName = null;
+class X3_Module_View extends X3_Module implements Iterator {
+    public $viewName = null;
     /**
      * has such stucture:
      * Array
@@ -52,12 +52,6 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
         }
     }
 
-    public function count() {
-        if(!empty($this->tables))
-            return sizeof($this->tables);
-        else return 0;
-    }
-
     public function fieldNames(){return array();}
 
     public function fieldName($name){
@@ -68,19 +62,11 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
             return ucfirst($name);
     }
 
-    public function getAttributes() {
-        $attributes = array();
-        foreach($this->tables as $table){
-            $attributes[] = $table->attributes;
-        }
-        return $attributes;
-    }
-
     public function beforeValidate(){return true;}
     public function afterValidate(){return true;}
 
     public function beforeSave(){return true;}
-    public function afterSave($bNew=false){return true;}
+    public function afterSave(){return true;}
 
     public function getTable() {
         return $this->table;
@@ -93,35 +79,8 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
     public function save() {
         return $this->table->save();
     }
-    /**
-     *  <b>WARNING</b>
-     *  <i>For PHP lower than 5.3 you must implement this function</i>
-     * @param <type> $pk
-     * @param string $class Class name for static creation
-     * @return X3_Module_Table current class
-     */
-    public static function getByPk($pk,$class=null) {
-        if($class==null && PHP_VER>=50300)
-            $class = get_called_class();
-        else
-            throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию getByPk(\$pk,\$class=__CLASS__)");
-        $class = new $class();
-        $pk = mysql_real_escape_string($pk);
-        return $class->table->select('*')->where("`".$class->table->_PK."`='$pk'")->asObject(true);
-    }
 
-    public static function get($params,$class=null) {
-        if($class==null && PHP_VER>=50300)
-            $class = get_called_class();
-        else
-            throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию get(\$params,\$class=__CLASS__)");
-        if(!is_array($params)) return NULL;
-        $class = new $class();
-        $query = $class->table->formQuery($params);
-        return $class->table->select('*')->where($query)->asObject();
-    }
-
-    /**
+/**
  * Getters setters and other routine
  */
 
@@ -166,22 +125,6 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
         return isset($this->tables[$this->position]);
     }
 
-    public function offsetExists($offset) {
-        return isset($this->tables[$offset]);
-    }
-
-    public function offsetSet($offset, $value) {
-            $this->tables[$offset]->accuire($value);
-    }
-
-    public function offsetUnset($offset) {
-        if (isset($this->tables[$offset]))
-            unset($this->tables[$offset]);
-    }
-
-    public function offsetGet($offset) {
-        return isset($this->tables[$offset]) ? $this->tables[$offset] : null;
-    }
 
 }
 ?>

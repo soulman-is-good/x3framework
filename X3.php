@@ -17,11 +17,15 @@
  *     [HTTP_X_FLASH_VERSION] => 10,0,2,54
     [HTTP_USER_AGENT] => Shockwave Flash
  */
+//TODO: playout $_SERVER for console app
 defined('X3_DEBUG') or define('X3_DEBUG', FALSE);
 defined('X3_ENABLE_EXCEPTION_HANDLER') or define('X3_ENABLE_EXCEPTION_HANDLER', TRUE);
 defined('X3_ENABLE_ERROR_HANDLER') or define('X3_ENABLE_ERROR_HANDLER', TRUE);
 defined('IS_AJAX') or define('IS_AJAX', isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
+defined('IS_SAME_HOST') or define('IS_SAME_HOST', isset($_SERVER['HTTP_HOST']) && isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], $_SERVER['HTTP_HOST']) > 0);
+defined('IS_SAME_AJAX') or define('IS_SAME_AJAX', IS_AJAX && IS_SAME_HOST);
 defined('IS_FLASH') or define('IS_FLASH', isset($_SERVER['HTTP_X_FLASH_VERSION']) || stripos($_SERVER['HTTP_USER_AGENT'],'Flash') > 0);
+defined('IS_IE') or define('IS_IE', isset($_SERVER['HTTP_USER_AGENT']) && (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE') !== false));
     $version = explode('.', PHP_VERSION);
 defined('PHP_VER') or define('PHP_VER', ($version[0] * 10000 + $version[1] * 100 + $version[2]));
 /**
@@ -150,6 +154,11 @@ class X3 {
 
     public static function translate($message,$substitude=array()) {
        //TODO: i18n
+//        $dirData = pathinfo($_SERVER['SCRIPT_NAME']);
+//        $pathToStrings =  X3::app()->basePath
+//                 . $dirData['dirname']
+//                 . '/strings/'
+//                 . $dirData['filename'] . '.str.php';
         if(!empty($substitude))
             foreach ($substitude as $key => $value) {
                 $message = str_replace("{".$key."}", $value, $message);

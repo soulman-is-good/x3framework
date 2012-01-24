@@ -82,15 +82,19 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
             $user_group = X3::app()->user->group;
             if (isset($allow[$user_group])) {
                 $aactions = $allow[$user_group];
+                if(!is_array($aactions)) $aactions = array($aactions);
                 $aactions = array_merge($allow['*'], $aactions);
             } else {
                 $aactions = $allow['*'];
+                if(!is_array($aactions)) $aactions = array($aactions);
             }
             if (isset($deny[$user_group])) {
                 $nactions = $deny[$user_group];
+                if(!is_array($nactions)) $nactions = array($nactions);
                 $nactions = array_merge($deny['*'], $nactions);
             } else {
                 $nactions = $deny['*'];
+                if(!is_array($nactions)) $nactions = array($nactions);
             }
             if ((in_array($action, $aactions) || reset($aactions)=='*') && (!in_array($action, $nactions) || reset($nactions)!='*')) {
                 return true;

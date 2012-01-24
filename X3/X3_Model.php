@@ -37,9 +37,10 @@ class X3_Model extends X3_Component implements ArrayAccess{
             $this->module=$module;
             $this->_queries[$tableName] = new X3_Query($tableName,get_class($module));
             if (!in_array($tableName, self::$_tables)) {
-                if($this->createTable())
+                if($this->createTable()){
                     self::$_tables[] = $tableName;
-                else
+                    self::$_columns[$tableName] = self::$db->fetchAll("SHOW COLUMNS FROM `{$tableName}`");
+                }else
                     throw new X3_Exception ("$tableName creation failed! Try manualy...", '500');
             } else {
                 if(empty(self::$_columns[$tableName]))
@@ -64,13 +65,15 @@ class X3_Model extends X3_Component implements ArrayAccess{
         //TODO: must be without _fields to function along without X3_Module
         $this->_alter_stack[$this->tableName] = $this->_queries[$this->tableName];
         foreach ($this->module->_fields as $name => $field) {
+            //storing special attributes for any cases
+            if(in_array('unused',$field)) continue;
             $dataType = $this->parseDataType($field);
             $select[] = "`$name` ".$this->compile($dataType);
         }
         $this->_alter_stack[$this->tableName]->action = "CREATE/TABLE";
         $this->_alter_stack[$this->tableName]->select = implode(', ', $select);
-        //var_dump($this->_alter_stack[$this->tableName]->buildSQL());die;
-        $res = $this->applyStack();
+        if($res = $this->applyStack())
+            $this->verifyTable();
         return $res;
     }
     protected function applyStack() {
@@ -90,16 +93,26 @@ class X3_Model extends X3_Component implements ArrayAccess{
         //echo "<textarea>".$sql."</textarea>";
     }
 
+    public function getAttributes() {
+        return $this->attributes;
+    }
+
+    public function getAttribute($name='') {
+        if(isset($this[$name]))
+        return $this->attributes[$name];
+    }
+
     public function verifyTable() {
         //Go through defined fields and manage database
         $columns = self::$_columns[$this->tableName];
-        //echo '<pre>' . print_r($columns,1) . '</pre>';exit;        
         foreach ($this->module->_fields as $name => $field) {
             $found = false;
             $change = false;
             $k = current($columns);
             $langs = in_array('language', $field);
             $this[$name]=(isset($field['default']) && strtolower($field['default'])!='null')?$field['default']:null;
+            //storing special attributes for any cases
+            if(in_array('unused',$field)) continue;
             //TODO: if $langs && !in_array($lang,$this->_columns)
             $dataType = array();
             $dataType = $this->parseDataType($field);
@@ -193,11 +206,22 @@ class X3_Model extends X3_Component implements ArrayAccess{
             $arg = array_shift($matches);
             $dataType = str_replace($rep, "", $dataType);
         }
+        if($arg) {
+            if(strpos($arg,'|')!==false){
+                $arg = array_pop(explode('|',$arg));
+            }
+        }
         if(strpos($dataType, '*')!==false){
             $dataType = str_replace('*', '', $dataType);
             $null="NOT NULL";
         }
         switch ($dataType) {
+            case 'float':
+                if(!$arg) $arg = "7,2";
+                $dataType = "float($arg)";
+                if(in_array('unsigned',$field))
+                    $dataType .= " unsigned";
+                break;
             case 'integer':
             case 'datetime':
                 if(!$arg) $arg = 11;
@@ -332,8 +356,8 @@ class X3_Model extends X3_Component implements ArrayAccess{
             if($dataType=='datetime') $arg=11;
             if($dataType=='email') $arg=255;
             if($arg) {
-                if(strpos($arg,'-')!==false){
-                    $arg = explode('-',$arg);
+                if(strpos($arg,'|')!==false){
+                    $arg = explode('|',$arg);
                     $min = array_shift($arg);
                     $max = array_shift($arg);
                 }else{
@@ -344,6 +368,12 @@ class X3_Model extends X3_Component implements ArrayAccess{
                     $this->addError($name,(isset($field['errors']['length-max']))?$field['errors']['length-max']:X3::translate('Поле {attribute} не должно превышать {length} символов', array('attribute'=>$this->module->fieldName($name),'length'=>$max)));
                 if($isset && isset($min) && mb_strlen($this[$name],X3::app()->encoding)<$min)
                     $this->addError($name,(isset($field['errors']['length-min']))?$field['errors']['length-min']:X3::translate('Поле {attribute} должно быть более {length} символов', array('attribute'=>$this->module->fieldName($name),'length'=>$min)));
+            }
+            $default = false;
+            if(isset($field['default']))
+                $default = $field['default'];
+            if(in_array('null',$field)){
+                $default = 'NULL';
             }
             switch ($dataType) {
                 case 'file':
@@ -362,6 +392,9 @@ class X3_Model extends X3_Component implements ArrayAccess{
                     if($isset && $this[$name]!==null)
                         $this[$name]=strip_tags($this[$name]);
                 break;
+                case 'text':
+                    $this[$name] = mysql_real_escape_string($this[$name]);
+                break;
                 case 'content':
                     if($isset && $this[$name]!==null)
                     $this[$name]=strip_tags($this[$name]);
@@ -374,8 +407,13 @@ class X3_Model extends X3_Component implements ArrayAccess{
                 break;
                 case 'datetime':
                 case 'integer':
-                    if(!in_array('null',$field) && preg_match('/[^0-9]/', $this[$name])>0)
+                    if($default!='NULL' && preg_match('/[^0-9]/', $this[$name])>0)
                         $this->addError($name,(isset($field['errors']['integer']))?$field['errors']['integer']:X3::translate('Поле {attribute} должно быть целым числом', array('attribute'=>$this->module->fieldName($name))));
+                break;
+                case 'float':
+                    $this[$name] = str_replace(",",".",$this[$name]);
+                    if($default!='NULL' && preg_match('/(^[-0-9]+?[.][0-9]+$)|(^[0-9]+$)/', $this[$name])==0)
+                        $this->addError($name,(isset($field['errors']['float']))?$field['errors']['float']:X3::translate('Поле {attribute} должно быть вещественным числом', array('attribute'=>$this->module->fieldName($name))));
                 break;
                 default:
                 break;
@@ -406,13 +444,14 @@ class X3_Model extends X3_Component implements ArrayAccess{
         if(isset($this->attributes['id']) && $this->attributes['id']>0){ 
             //TODO: primary key attribute orienatation
             //TODO: Can't UPDATE without primary key if no WHERE;
+            //TODO: Optimization if module->tables != empty -> onEnd -> query all updates : else realtime
             $rez = $this->update($this->attributes)->where("`id`='".$this->attributes['id']."'")->execute();
             $this->module->afterSave();
             return $rez;
         }else{
             $rez = $this->insert($this->attributes)->execute();
             $this->attributes['id'] = mysql_insert_id();
-            $this->module->afterSave();
+            $this->module->afterSave(true);
             return $rez;
         }
         

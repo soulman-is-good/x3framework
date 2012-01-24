@@ -17,6 +17,9 @@ class X3_MySQLConnection extends X3_Component {
 
     protected $sql = NULL;
 
+    private $bTransaction = false;
+    private $transaction = array();
+
     public $query_num = 0;
 
     public $queryClass = "X3_MySQL_Query";
@@ -58,7 +61,12 @@ class X3_MySQLConnection extends X3_Component {
     }
 
     public function query($sql=null) {
-        if(empty($sql) && empty($this->sql)) return false;
+        if(empty($sql) && empty($this->sql))
+            throw new X3_Exception ("Empty query", "500");
+        if($this->bTransaction && (strpos($sql,"INSERT")!==false || strpos($sql, "UPDATE")!==false)){
+            $this->transaction[]=$sql;
+            return true;
+        }
         if(!empty($sql)) {
             $this->sql = $sql;
             if(X3_DEBUG)
@@ -68,6 +76,38 @@ class X3_MySQLConnection extends X3_Component {
         $this->query_num++;
         //TODO:Handling mysql_unbuffered_query
         return mysql_query($this->sql, self::$_db);
+    }
+
+    public function startTransaction() {
+        $this->bTransaction = true;
+        $this->transaction = array();
+    }
+
+    public function isTransaction() {
+        return $this->bTransaction;
+    }
+
+    public function addTransaction($sql) {
+        $this->transaction[]=$sql;
+    }
+
+    public function commit() {
+        $this->bTransaction = false;
+        if(!mysql_query("START TRANSACTION",self::$_db))
+            return false;
+        try{
+            foreach($this->transaction as $trans){
+                $this->query($trans);
+            }
+            return $this->query("COMMIT");
+        }catch (Exception $e){
+            return false;
+        }
+    }
+
+    public function rollback() {
+        $this->bTransaction = false;
+        return $this->query("ROLLBACK");
     }
     
     public function fetchAll($sql=null) {
