@@ -218,7 +218,20 @@ class X3_Model extends X3_Component implements ArrayAccess{
         switch ($dataType) {
             case 'float':
                 if(!$arg) $arg = "7,2";
-                $dataType = "float($arg)";
+                $mantisa = explode(',',$arg);
+                if(sizeof($mantisa)==1){
+                    $mantisa = 0;
+                    $dataType = "float";
+                }else{
+                    $mantisa = (int)array_pop($mantisa);
+                    $dataType = "float($arg)";
+                }
+                if(isset($field['default'])){
+                    $def = substr($field['default'],strpos($field['default'],'.')+1);
+                    if(strpos($field['default'],'.')==false || strlen($def)!=$mantisa){
+                        $field['default'] = sprintf("%.0{$mantisa}f",$field['default']);
+                    }
+                }
                 if(in_array('unsigned',$field))
                     $dataType .= " unsigned";
                 break;

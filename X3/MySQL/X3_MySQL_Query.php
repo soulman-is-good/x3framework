@@ -71,6 +71,36 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
 
     public function update($field,$value = null) {
         $this->action = "UPDATE";
+        $m = $this->class;
+        $class = X3_Module::getInstance($m);
+        foreach($class->_fields as $field){
+            if(isset($field['ref'])){
+                if(isset($field['ref']['onupdate'])){
+                    if(is_array($field['ref']['onupdate'])){
+                        $function = array_slice($field['ref']['onupdate'], 0, 2);
+                        call_user_func_array($function,$params);
+                    }elseif(is_callable($field['ref']['onupdate'])){
+                        //PHP >= 5.3
+                        $params = array('class'=>$class);
+                        call_user_func_array($field['ref']['onupdate'],$params);
+                    }else
+                    switch (strtoupper($field['ref']['onupdate'])){
+                        case "CASCADE":
+                            die('ДОДЕЛАЙ MySQL QUERY!!!');
+                            break;
+                        case "RESTRICT":
+                            die('ДОДЕЛАЙ MySQL QUERY!!!');
+                            break;
+                        case "SET DEFAULT":
+                            //TODO: check if related table.field have default
+                            break;
+                        case "SET NULL":
+                            //TODO: check if related table.field can be null
+                            break;
+                    }
+                }
+            }
+        }
         $values = array();
         if(is_array($field)){
             foreach($field as $k=>$v){
@@ -131,6 +161,36 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
 
     public function delete() {
         $this->action = "DELETE";
+        $m = $this->class;
+        $class = X3_Module::getInstance($m);
+        foreach($class->_fields as $field){
+            if(isset($field['ref'])){
+                if(isset($field['ref']['ondelete'])){
+                    if(is_array($field['ref']['ondelete'])){
+                        $function = array_slice($field['ref']['ondelete'], 0, 2);
+                        call_user_func_array($function,$params);
+                    }elseif(is_callable($field['ref']['ondelete'])){
+                        //PHP >= 5.3
+                        $params = array('class'=>$class);
+                        call_user_func_array($field['ref']['ondelete'],$params);
+                    }else
+                    switch (strtoupper($field['ref']['ondelete'])){
+                        case "CASCADE":
+                            die('ДОДЕЛАЙ MySQL QUERY!!!');
+                            break;
+                        case "RESTRICT":
+                            die('ДОДЕЛАЙ MySQL QUERY!!!');
+                            break;
+                        case "SET DEFAULT":
+                            //TODO: check if related table.field have default
+                            break;
+                        case "SET NULL":
+                            //TODO: check if related table.field can be null
+                            break;
+                    }
+                }
+            }
+        }
         return $this;
     }
 
@@ -233,5 +293,5 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
         return $query;
     }
 }
-array(array('id'=>'1','user'=>'LOLO',array(array('a'=>'1'),array('b'=>'1')),'status'),array('hello'=>'world','bye'=>'world'))
+//array(array('id'=>'1','user'=>'LOLO',array(array('a'=>'1'),array('b'=>'1')),'status'),array('hello'=>'world','bye'=>'world'))
 ?>

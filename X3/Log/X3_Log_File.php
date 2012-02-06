@@ -14,6 +14,11 @@ class X3_Log_File extends X3_Log {
     private $directory = 'logs';
     private $filename = null;
     private $prefix = '[d.m.Y H:i:s] ';
+    /**
+     *
+     * @var boolean flashes log file each application run;
+     */
+    public $recreate = false;
 
     public function __construct($props) {
         parent::__construct($props['category']);
@@ -48,7 +53,10 @@ class X3_Log_File extends X3_Log {
             throw new X3_Exception("log directory does not exist!",500);
         if(!is_writable($this->directory))
             throw new X3_Exception("log directory is not writable!",500);
-
+        if($this->recreate){
+            @file_put_contents($this->directory . DIRECTORY_SEPARATOR . $this->filename, "");
+            $this->recreate = false;
+        }
         @file_put_contents($this->directory . DIRECTORY_SEPARATOR . $this->filename, date($this->prefix) . $log . PHP_EOL, FILE_APPEND);
 
         parent::processLog($log);

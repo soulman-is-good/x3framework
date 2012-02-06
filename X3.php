@@ -143,8 +143,8 @@ class X3 {
         spl_autoload_register(array('X3', 'autoload'));
     }
 
-    public static function log($msg,$category='application') {
-        self::app()->log->processLog($msg,$category);
+    public static function log($msg,$category='application') {        
+        self::$_app->log->processLog($msg,$category);
        //echo "<pre>X3 LOG UNDONE!!! : ".$msg."</pre>";
     }
 
@@ -164,6 +164,12 @@ class X3 {
                 $message = str_replace("{".$key."}", $value, $message);
             }
         return $message;
+    }
+
+    public static function __callStatic($name, $arguments) {        
+        if(empty($arguments) && isset(self::$_app->$name))
+            return self::$_app->$name;
+        else parent::__callStatic($name,$arguments);
     }
 
 }

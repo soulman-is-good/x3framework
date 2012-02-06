@@ -151,10 +151,12 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
                         else {
                             $actions = explode(',', $c['actions']);
                             foreach ($actions as $a)
-                                if (($isact = (trim($a) === $action)))
+                                if (($isact = ((trim($a) === $action && !isset($c['trigger'])) || (isset($c['trigger']) && trim($a) === $action && call_user_func($c['trigger'])))))
                                     break;
                         }
                         if ($isact) {
+                            if (isset($c['filename']))
+                                X3::app()->cache->filename = $c['filename'];
                             if (isset($c['expire']))
                                 X3::app()->cache->expire = $c['expire'];
                             return X3::app()->cache->readCache($this->id,$action);

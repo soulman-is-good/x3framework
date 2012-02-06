@@ -57,13 +57,16 @@ class X3_Cache_File extends X3_Component {
             $buf .= fread($f, $filesize-32);
         }
         fclose($f);
-        header('HTTP/1.1 304 Not Modified');
+        if(!IS_AJAX)
+            header('HTTP/1.1 304 Not Modified');
         header('Expires: ' . gmdate('D, d M Y H:i:s', $header) . ' GMT');
         return $buf;
     }
 
-    public function clearCache() {
-        //TODO: if cache exist unlink
+    public function flush($file=null) {
+        if($file===null) $file = $this->file;
+        if(is_file($file)) //TODO: if flock LOCK_EX
+            @unlink ($file);
     }
 
     public function onRender(&$output) {

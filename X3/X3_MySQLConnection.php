@@ -91,6 +91,10 @@ class X3_MySQLConnection extends X3_Component {
         $this->transaction[]=$sql;
     }
 
+    public function getTransaction() {
+        return $this->transaction;
+    }
+
     public function commit() {
         $this->bTransaction = false;
         if(!mysql_query("START TRANSACTION",self::$_db))

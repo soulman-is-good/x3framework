@@ -27,5 +27,11 @@ class X3_LogRouter extends X3_Component {
                 $log->processLog($msg);
         }
     }
+
+    public function __get($name) {
+        if(isset(self::$_stack[$name]))
+            return self::$_stack[$name];
+        parent::__get($name);
+    }
 }
 ?>
