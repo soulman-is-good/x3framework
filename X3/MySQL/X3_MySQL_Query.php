@@ -73,18 +73,18 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
         $this->action = "UPDATE";
         $m = $this->class;
         $class = X3_Module::getInstance($m);
-        foreach($class->_fields as $field){
-            if(isset($field['ref'])){
-                if(isset($field['ref']['onupdate'])){
-                    if(is_array($field['ref']['onupdate'])){
-                        $function = array_slice($field['ref']['onupdate'], 0, 2);
+        foreach($class->_fields as $fld){
+            if(isset($fld['ref'])){
+                if(isset($fld['ref']['onupdate'])){
+                    if(is_array($fld['ref']['onupdate'])){
+                        $function = array_slice($fld['ref']['onupdate'], 0, 2);
                         call_user_func_array($function,$params);
-                    }elseif(is_callable($field['ref']['onupdate'])){
+                    }elseif(is_callable($fld['ref']['onupdate'])){
                         //PHP >= 5.3
                         $params = array('class'=>$class);
-                        call_user_func_array($field['ref']['onupdate'],$params);
+                        call_user_func_array($fld['ref']['onupdate'],$params);
                     }else
-                    switch (strtoupper($field['ref']['onupdate'])){
+                    switch (strtoupper($fld['ref']['onupdate'])){
                         case "CASCADE":
                             die('ДОДЕЛАЙ MySQL QUERY!!!');
                             break;
@@ -107,7 +107,7 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
                 $k = trim($k,"`");
                 $v = trim($v,"'");
                 
-                if($field[$k]===null)
+                if(is_null($field[$k]))
                     $values[] = "`$k`=NULL";
                 else
                     $values[] = "`$k`='$v'";

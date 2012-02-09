@@ -15,6 +15,13 @@ class X3_MySQLConnection extends X3_Component {
 
     protected static $_query = NULL;
 
+    protected $config = array(
+                'host'=>'localhost',
+                'user'=>'root',
+                'password'=>'',
+                'database'=>null,
+            );
+
     protected $sql = NULL;
 
     private $bTransaction = false;
@@ -26,26 +33,28 @@ class X3_MySQLConnection extends X3_Component {
     
     public function __construct($config = null) {
         if($config == null || !is_array($config))
-            $config = array(
-                'host'=>'localhost',
-                'user'=>'root',
-                'password'=>'',
-                'database'=>null,
-            );
+            $config = $this->config;
+        else
+            $this->config = $config;
         
-        if(self::$_db === NULL) {
-            $server = (isset($config['host']))?$config['host']:'localhost';
-            $username = (isset($config['user']))?$config['user']:'root';
-            $password = (isset($config['password']))?$config['password']:'';
-            $dbname = (isset($config['database']))?$config['database']:'information_schema';
-            self::$_db = @mysql_connect($server, $username, $password);
-            if(self::$_db===false){
-                throw new X3_Exception("Could not connect to mysql server", 500);
-            }if(!mysql_select_db($dbname, self::$_db)){
-                throw new X3_Exception("Could not connect to database", 500);
-            }
-            @mysql_query("SET NAMES utf8");
+        $this->connect($config);
+        
+    }
+
+    public function connect($config = array()) {
+        if(self::$_db !== NULL) return false;
+        if(empty($config)) $config = $this->config;
+        $server = (isset($config['host']))?$config['host']:'localhost';
+        $username = (isset($config['user']))?$config['user']:'root';
+        $password = (isset($config['password']))?$config['password']:'';
+        $dbname = (isset($config['database']))?$config['database']:'information_schema';
+        self::$_db = @mysql_connect($server, $username, $password);
+        if(self::$_db===false){
+            throw new X3_Exception("Could not connect to mysql server", 500);
+        }if(!mysql_select_db($dbname, self::$_db)){
+            throw new X3_Exception("Could not connect to database", 500);
         }
+        @mysql_query("SET NAMES utf8");
     }
 
     public function validateSQL() {
@@ -60,10 +69,11 @@ class X3_MySQLConnection extends X3_Component {
         return mysql_fetch_assoc($res);
     }
 
-    public function query($sql=null) {
+    public function query($sql=null,$pass=true) {
+        $this->connect();
         if(empty($sql) && empty($this->sql))
             throw new X3_Exception ("Empty query", "500");
-        if($this->bTransaction && (strpos($sql,"INSERT")!==false || strpos($sql, "UPDATE")!==false)){
+        if($this->bTransaction && $pass && (strpos($sql,"INSERT")!==false || strpos($sql, "UPDATE")!==false || strpos($sql, "ALTER")!==false)){
             $this->transaction[]=$sql;
             return true;
         }
@@ -96,15 +106,21 @@ class X3_MySQLConnection extends X3_Component {
     }
 
     public function commit() {
+        $this->connect();
         $this->bTransaction = false;
         if(!mysql_query("START TRANSACTION",self::$_db))
             return false;
         try{
+            if(X3_DEBUG) X3::log('Starting transaction','db');
             foreach($this->transaction as $trans){
-                $this->query($trans);
+                mysql_query($trans,self::$_db);
+                if(X3_DEBUG) X3::log("\t".$trans,'db');
             }
+            if(X3_DEBUG) X3::log('Going for commit','db');
             return $this->query("COMMIT");
         }catch (Exception $e){
+            throw new X3_Exception($e->getMessage(), '500');
+            X3::log('Transaction failure: '.$e->getMessage(),'db');
             return false;
         }
     }
@@ -115,6 +131,7 @@ class X3_MySQLConnection extends X3_Component {
     }
     
     public function fetchAll($sql=null) {
+        $this->connect();
         $data = array();
         if(!($query = $this->query($sql))) return NULL;
         $query = mysql_query($this->sql, self::$_db);

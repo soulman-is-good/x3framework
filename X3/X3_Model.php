@@ -51,7 +51,7 @@ class X3_Model extends X3_Component implements ArrayAccess{
                 //$this->module->_modules[$class] = $this;
             }
         }
-        //...till here. Maybe we can left ONE non static variable for X3_Query???
+        //...till here. Maybe we can leave ONE non static variable for X3_Query???
         
     }
 
