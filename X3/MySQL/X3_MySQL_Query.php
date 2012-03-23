@@ -13,8 +13,11 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
 
     private $class = null;
 
-    public function __construct($tableName,$classname='stdClass') {
-        $this->class = $classname;
+    public function __construct($tableName,$classname=null) {
+        if($classname!=null && $classname instanceof X3_Module)
+            $this->class = $classname;
+        else
+            $this->class = new stdClass();
         $params = array('tables'=>$tableName);
         parent::__construct($params);
     }
@@ -47,15 +50,31 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
         return $this;
     }
 
+    public function join($query='') {
+        if(empty($query)) return $this;
+        $m = $this->class;
+        $fields = $m->_fields;
+        $tbl = $m->tableName;
+        if($this->select == "$tbl.*" || $this->select == "`$tbl`.*"){
+            $arr = array();
+            foreach($fields as $name=>$field){
+                $arr[] = "`$tbl`.`$name`";
+            }
+            $this->select = implode(', ',$arr);
+        }
+        $this->join = $query;
+        return $this;
+    }
+
     public function page($query='1') {
         if(!is_numeric($query)) return $this;
         //TODO: class may by stdClass
         $m = $this->class;
-        if($this->limit<=0) $this->limit=isset(X3_Module::getInstance($m)->limit)?X3_Module::getInstance($m)->limit:10;
+        if($this->limit<=0) $this->limit=isset($m->limit)?$m->limit:10;
         $query = ((int)$query)-1;
         if($query<0) $query=0;
         $this->offset = $query*$this->limit;
-        X3_Module::getInstance($m)->setPage($query);
+        $m->setPage($query);
         return $this;
     }
 
@@ -72,7 +91,7 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
     public function update($field,$value = null) {
         $this->action = "UPDATE";
         $m = $this->class;
-        $class = X3_Module::getInstance($m);
+        $class = $m;
         foreach($class->_fields as $fld){
             if(isset($fld['ref'])){
                 if(isset($fld['ref']['onupdate'])){
@@ -162,7 +181,7 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
     public function delete() {
         $this->action = "DELETE";
         $m = $this->class;
-        $class = X3_Module::getInstance($m);
+        $class = $m;
         foreach($class->_fields as $field){
             if(isset($field['ref'])){
                 if(isset($field['ref']['ondelete'])){
@@ -195,11 +214,11 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
     }
 
     public function  render($view, $data = null, $return = false) {
-        if(is_array($data))
+        /*if(is_array($data))
             $data=array_merge($data,array('models'=>self::$_models[$this->tableName]));
         else
             $data = array('models'=>self::$_models[$this->tableName]);
-        parent::render($view, $data, $return);
+        parent::render($view, $data, $return);*/
     }
 
     public function asArray($single = false) {
@@ -219,12 +238,10 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
             if(empty($models)) {
                 return NULL;
             }
-            $module = X3_Module::getInstance($module);
             $module->table->accuire($models);
             return $module;
         }
         if(empty($models)) return array();
-        $module = X3_Module::getInstance($module);
         foreach ($models as $i=>$model) {
             $tmp = new X3_Model($module->tableName,$module);
             $tmp->accuire($model);
@@ -280,14 +297,24 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
                 }else
                     $query .= "(" . $this->formQuery($v) . ")";
             }else{
+                $oper = '=';
                 if(is_numeric($k)){
                     $k = $v;
                     $v = '1';
                 }
+                if(is_array($v)){
+                    $oper = key($v);
+                    $v = current($v);
+                }
+                if($v=='NULL' || $v===NULL || $v=='NOT NULL'){
+                    if($v===NULL)$v='NULL';
+                    $s = "`$k` IS $v";
+                }else
+                    $s = "`$k`$oper'$v'";
                 if($nv!=false)
-                    $query .= "`$k`='$v' AND ";
+                    $query .= "$s AND ";
                 else
-                    $query .= "`$k`='$v'";
+                    $query .= "$s";
             }
         }
         return $query;

@@ -101,24 +101,27 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
      * @return X3_Module_Table current class
      */
     public static function getByPk($pk,$class=null) {
-        if($class==null && PHP_VER>=50300)
+        if($class==null)
             $class = get_called_class();
-        else
+        elseif($class==null)
             throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию getByPk(\$pk,\$class=__CLASS__)");
         $class = new $class();
         $pk = mysql_real_escape_string($pk);
         return $class->table->select('*')->where("`".$class->table->_PK."`='$pk'")->asObject(true);
     }
 
-    public static function get($params,$class=null) {
-        if($class==null && PHP_VER>=50300)
+    public static function get($params=array(),$single=false,$class=null) {
+        if($class==null)
             $class = get_called_class();
-        else
-            throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию get(\$params,\$class=__CLASS__)");
+        elseif($class==null)
+            throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию get(\$params,\$single=false,\$class=__CLASS__)");
         if(!is_array($params)) return NULL;
         $class = new $class();
-        $query = $class->table->formQuery($params);
-        return $class->table->select('*')->where($query)->asObject();
+        if(empty($params))
+            $query = '1';
+        else
+            $query = $class->table->formQuery($params);
+        return  $class->table->select('*')->where($query)->asObject($single);
     }
 
     /**
@@ -137,19 +140,30 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
             return $this->table[$name];
         if(isset($this->_fields) && array_key_exists($name,$this->_fields))
             return $this->table[$name]=isset($this->_fields[$name]['default'])?$this->_fields[$name]['default']:"";
-        if(in_array($name, $this->table->_queries)){
-            return $this->table->_queries[$name];
+        if(in_array($name, X3_Model::$_queries)){
+            return X3_Model::$_queries[$name];
         }else
             return parent::__get($name);
     }
 
+    public function __call($name, $parameters) {
+        if(method_exists($this->table, $name) || method_exists(X3_Model::$_queries[$this->tableName]->getQueryClass(),$name))
+            return call_user_func_array (array($this->table,$name), $parameters);
+
+        return parent::__call($name, $parameters);
+    }
+
     function rewind() {
         $this->position = 0;
-        $this->table = $this->tables[$this->position];
+        if(isset($this->tables[$this->position]))
+            $this->table = $this->tables[$this->position];
     }
 
     function current() {
-        return $this->tables[$this->position];
+        if(isset($this->tables[$this->position]))
+            return $this->tables[$this->position];
+        else
+            return $this->table;
     }
 
     function key() {

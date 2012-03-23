@@ -38,13 +38,13 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
 
     public function run() {
         $action = 'action' . ucfirst($this->action);
+        $this->fire('beforeAction',array(&$action));
         if (($output = $this->handleCache()) !== false) {
-            $this->fire('beforeAction');
             $this->fire('onRender',array(&$output));
             echo $output;
             $this->fire('afterAction');
         }else{
-            $this->fire('beforeAction');
+            $this->fire('beforeAction',array(&$action));
             $this->module->$action();
             $this->fire('afterAction');
         }
@@ -155,8 +155,12 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
                                     break;
                         }
                         if ($isact) {
-                            if (isset($c['filename']))
+                            if (isset($c['filename'])){
                                 X3::app()->cache->filename = $c['filename'];
+                            }
+                            if (isset($c['directory'])){
+                                X3::app()->cache->directory = $c['directory'];
+                            }
                             if (isset($c['expire']))
                                 X3::app()->cache->expire = $c['expire'];
                             return X3::app()->cache->readCache($this->id,$action);
@@ -257,10 +261,31 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
       return $output;
       } */
 
+    /**
+     *    300 Multiple Choices (Множество выборов).
+     *    301 Moved Permanently (Перемещено окончательно).
+     *    302 Found (Найдено).
+     *    303 See Other (Смотреть другое).
+     *    304 Not Modified (Не изменялось).
+     *    305 Use Proxy (Использовать прокси).
+     *    306 (зарезервировано).
+     *    307 Temporary Redirect (Временное перенаправление).
+     * @param string $url
+     * @param bool $terminate
+     * @param int $statusCode
+     */
     public function redirect($url, $terminate=true, $statusCode=302) {
         header('Location: ' . $url, true, $statusCode);
         if ($terminate)
             exit(0);
+    }
+
+    public function refresh() {
+        $this->redirect($_SERVER['REQUEST_URI'],true,302);
+    }
+
+    public function reload() {
+        $this->refresh();
     }
 
 }

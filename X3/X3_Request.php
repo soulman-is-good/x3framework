@@ -14,6 +14,7 @@ class X3_Request extends X3_Component {
 
     public $url = '';
     public $uri = array();
+    public $stack = array();
     public $get = array();
     public $post = array();
     public $suffix = '';
@@ -25,10 +26,10 @@ class X3_Request extends X3_Component {
         $this->post = array_extend($this->post, $_POST);
     }
 
-    protected function parse_query() {
-        $var = parse_url($this->url, PHP_URL_QUERY);
-        $this->url = str_replace(".$this->suffix", '', $this->url);
-        $this->url = str_replace("?$var", '', $this->url);
+    protected function parse_query(&$url) {
+        $var = parse_url($url, PHP_URL_QUERY);
+        $url = str_replace(".$this->suffix", '', $url);
+        $url = str_replace("?$var", '', $url);
         $var = html_entity_decode($var);
         $var = explode('&', $var);
         $arr = array();       
@@ -43,9 +44,9 @@ class X3_Request extends X3_Component {
     }
 
     public function resolveURI($uri) {
-        $this->url = trim($uri, '/');
-        $this->parse_query();
-        $this->uri = $uri = explode('/', $this->url);
+        $url = trim($uri, '/');
+        $this->parse_query($url);        
+        $this->stack = $uri = explode('/', $url);
         $controller = (!empty($uri[0])) ? array_shift($uri) : 'site';
         $action = (!empty($uri[0])) ? array_shift($uri) : 'index';
         if (strpos($action, '.') !== false)
@@ -58,7 +59,9 @@ class X3_Request extends X3_Component {
             }
         }
         $this->get = array_extend($this->get, $_GET);
-
+        $url = trim($_SERVER['REQUEST_URI'],'/');
+        $this->parse_query($url);
+        $this->url = $url;
         return array($controller, $action);
     }
 

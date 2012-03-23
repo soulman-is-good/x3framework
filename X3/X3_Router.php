@@ -19,16 +19,19 @@ class X3_Router extends X3_Component {
                 $this->$var = $val;
         }
         $this->addTrigger('onStartApp');
+        $this->addTrigger('beforeAction');
     }
 
     public function onStartApp(&$module,&$action) {
         if(!is_array($this->routes)) return;
         foreach($this->routes as $path=>$directives){
             $redirect = false;
-            $route = array_shift($directives);
-            if(!empty($directives))
-                $redirect = array_shift($directives);
-            //TODO: either way redirect
+            if(is_array($directives)){
+                $route = array_shift($directives);
+                if(!empty($directives)) //TODO: either way redirect
+                    $redirect = array_shift($directives);
+            }else
+                $route = $directives;
             $matches = array();
             if(preg_match ($path, $_SERVER['REQUEST_URI'], $matches)>0){
                 array_shift($matches);
@@ -38,6 +41,9 @@ class X3_Router extends X3_Component {
                 list($module,$action) = X3::app()->request->resolveURI($route);
             }
         }
+    }
+    public function beforeAction(&$action) {
+        //TODO: local routing
     }
 }
 ?>

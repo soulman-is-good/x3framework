@@ -30,6 +30,8 @@ interface X3_Interface_Session {
      * @return mixed session data
      */
     public function read($sid);
+    public function readOnce($key);
+    public function readAjax($key);
 
     /**
      * Writes session data by id
@@ -37,6 +39,8 @@ interface X3_Interface_Session {
      * @param mixed $data value to acuire
      */
     public function write($sid, $data);
+    public function writeOnce($key, $value);
+    public function writeAjax($key, $value);
 
     /**
      * Destroys session by id

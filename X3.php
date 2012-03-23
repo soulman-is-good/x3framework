@@ -59,7 +59,7 @@ class X3 {
     public static function init($config=NULL) {
         if(X3_DEBUG) {
             ini_set('display_errors', 1);
-            error_reporting(E_ALL | ~E_NOTICE);
+            error_reporting(E_ALL & ~E_NOTICE);
         }
         //TODO: multiple load variants, not only JSON
         if (is_string($config) && is_file($config))
@@ -193,3 +193,67 @@ function array_extend($a, $b) {
     return $a;
 }
 }
+
+if(!function_exists('array_typecast')){
+    function array_typecast($array,$tc = array()){
+        if(empty($tc)) return $array;
+        $from = key($tc);
+        $to = $tc[$from];
+        foreach($array as &$v){
+            switch ($to) {
+                case "string":
+                $v = (string)$v;
+                break;
+                case "int":
+                $v = (int)$v;
+                break;
+                default:
+                break;
+            }
+        }
+        return $array;
+    }
+}
+/**
+ * workaround until update to PHP 5.3 takes place
+ * (Don't make more than one call in the same line, or it will break!!!).
+ * @author "dsaa@dubli.com"
+ * Thanx to "dsaa at dubli dot com"
+ */
+if (!function_exists('get_called_class')):
+function get_called_class()
+{
+    $bt = debug_backtrace();
+    $l = count($bt) - 1;
+    $matches = array();
+    while(empty($matches) && $l > -1){
+        $lines = array();
+        $callerLine = "";
+        if(isset($bt[$l]['file']))
+            $lines = file($bt[$l]['file']);
+        if(isset($lines[$bt[$l]['line']-1]))
+            $callerLine = $lines[$bt[$l]['line']-1];
+        preg_match('/([a-zA-Z0-9\_]+)::'.$bt[$l--]['function'].'/',
+        $callerLine,
+        $matches);
+    }
+    if (!isset($matches[1])) $matches[1]=NULL; //for notices
+    if ($matches[1] == 'self') {
+        $line = 0;
+        if(isset($bt[$l]['line']))
+            $line = $bt[$l]['line']-1;
+        while ($line > 0 && strpos($lines[$line], 'class') === false) {
+            $line--;
+        }
+        if(isset($lines[$line]))
+            preg_match('/class[\s]+(.+?)[\s]+/si', $lines[$line], $matches);
+        else $matches = array();
+    }
+    return $matches[1];
+}
+endif;
+if (!function_exists('is_a')):
+    function is_a($object,$class){
+        return $object instanceof $class;
+    }
+endif;

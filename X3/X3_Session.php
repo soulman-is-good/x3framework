@@ -30,5 +30,35 @@ class X3_Session extends X3_Component{
 
         return self::$_instance;
     }
+
+    public static function read($key) {
+        $I = self::getInstance();
+        return $I->read($key);
+    }
+
+    public static function readOnce($key) {
+        $I = self::getInstance();
+        return $I->readOnce($key);
+    }
+
+    public static function readAjax($key) {
+        $I = self::getInstance();
+        return $I->readAjax($key);
+    }
+
+    public static function write($key,$value) {
+        $I = self::getInstance();
+        return $I->write($key,$value);
+    }
+
+    public static function writeOnce($key,$value) {
+        $I = self::getInstance();
+        return $I->writeOnce($key,$value);
+    }
+
+    public static function writeAjax($key,$value) {
+        $I = self::getInstance();
+        return $I->writeAjax($key,$value);
+    }
 }
 ?>

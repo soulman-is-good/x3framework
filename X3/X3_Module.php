@@ -22,8 +22,8 @@ class X3_Module extends X3_Component implements X3_Interface_Controller {
     private $_page = 0;
 
     public function __construct($action=null) {
+        $this->addTrigger('beforeAction',array(&$action));
         if($action!==null && $action!=''){
-            $this->addTrigger('beforeAction');
             $this->addTrigger('afterAction');
             $this->controller = new X3_Controller($action,$this);
         }
@@ -31,14 +31,24 @@ class X3_Module extends X3_Component implements X3_Interface_Controller {
         return $this;
     }
 
-    public static function getInstance($class=__CLASS__) {
+    public static function getInstance($class=null) {
+        /*if(PHP_VERSION_ID<50300)
+            throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию getInstance(\$class=__CLASS__)");
+        else*/
+        if($class==null)
+            $class = get_called_class();
         if(!isset(self::$_modules[$class])){
             self::$_modules[$class] = new $class();
         }
         return self::$_modules[$class];
     }
 
-    public static function newInstance($class=__CLASS__) {
+    public static function newInstance($class=null) {
+        /*if(PHP_VERSION_ID<50300)
+            throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию newInstance(\$class=__CLASS__)");
+        else*/
+        if($class==null)
+            $class = get_called_class();
         return self::$_modules[$class] = new $class();
     }
     /**
@@ -87,13 +97,13 @@ class X3_Module extends X3_Component implements X3_Interface_Controller {
 
     }
 
-    public function beforeAction() {
+    /*public function beforeAction() {
         return true;
     }
 
     public function afterAction() {
         return true;
-    }
+    }*/
     
     public function setPage($page) {
         $this->_page = intval($page);
@@ -104,7 +114,16 @@ class X3_Module extends X3_Component implements X3_Interface_Controller {
         $this->_page = X3_Session::getInstance()->read("X3-" . $this->id . "-" . $this->action . "-page");
         return $this->_page;
     }
-    
+
+    /**
+     * Magic
+     */
+    public function __call($name, $parameters) {
+        if(method_exists($this->controller, $name))
+            return call_user_func_array (array($this->controller,$name), $parameters);
+
+        return parent::__call($name, $parameters);
+    }
 
 }
 ?>

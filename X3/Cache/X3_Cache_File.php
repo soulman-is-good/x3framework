@@ -23,14 +23,20 @@ class X3_Cache_File extends X3_Component {
                 $this->$var = $val;
         }
         $this->directory = X3::app()->getPathFromAlias($this->directory);
-        if(!file_exists($this->directory))
+        if(!file_exists($this->directory)){
             if(!mkdir($this->directory))
                 throw new X3_Exception("cache directory does not exist!",500);
             else{
                 //chown($this->directory, 'www-data');
                 chmod($this->directory,0644);
             }
+        }
+        $this->handleCache();
         $this->addTrigger('onRender');
+    }
+
+    public function handleCache() {
+        //TODO: Check all cached files for expiration. Example - direct access /sitemap.xml
     }
 
     public function readCache($controller,$action) {
@@ -41,22 +47,20 @@ class X3_Cache_File extends X3_Component {
             $this->cache = true;
             return false;
         }
-        $filesize = filesize($file);
-        if(false === ($f = fopen($file,'r'))){
-            X3::log("Cache file '$file' could not be read.");
-            return false;
-        }
-        $header = (int)fread($f, 16);
+        $header = filemtime($file);
+        $header = strtotime($this->expire,$header);
         //if cache file expired regenerate
         if(time() > $header){
             $this->cache = true;
             return false;
         }
-        $buf = '';
-        while(!feof($f)){
-            $buf .= fread($f, $filesize-32);
+        try {
+            $buf = file_get_contents($file);
+        }catch(Exception $e){
+            X3::log("Cache file '$file' could not be read. Maybe no rights.");
+            return false;
+
         }
-        fclose($f);
         if(!IS_AJAX)
             header('HTTP/1.1 304 Not Modified');
         header('Expires: ' . gmdate('D, d M Y H:i:s', $header) . ' GMT');
@@ -71,13 +75,15 @@ class X3_Cache_File extends X3_Component {
 
     public function onRender(&$output) {
         if($this->cache){
-            $expire = sprintf('%16s',strtotime($this->expire));
+            if(is_file($this->file)){
+                @unlink($this->file);
+            }
             if(false === ($f = fopen($this->file,'w'))){
                 X3::log("Can't write cache file '$this->file'");
                 return false;
             }
             if(flock($f, LOCK_EX)){
-                fwrite($f, $expire,16);
+                //fwrite($f, $expire,16);
                 fwrite($f, $output);
                 flock($f, LOCK_UN);
             }

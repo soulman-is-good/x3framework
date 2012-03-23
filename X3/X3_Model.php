@@ -13,7 +13,7 @@ class X3_Model extends X3_Component implements ArrayAccess{
     
     public static $db;
     private $module = null;
-    public $_queries = array();
+    public static $_queries = array();
     public static $_tables = array();
     protected $_errors = array();
 
@@ -35,11 +35,10 @@ class X3_Model extends X3_Component implements ArrayAccess{
         if($module!=null){
             //TODO: if $module != NULL!!! Must be either way. With or without $module!!!
             $this->module=$module;
-            $this->_queries[$tableName] = new X3_Query($tableName,get_class($module));
+            self::$_queries[$tableName] = new X3_Query($tableName,$module);
             if (!in_array($tableName, self::$_tables)) {
                 if($this->createTable()){
-                    self::$_tables[] = $tableName;
-                    self::$_columns[$tableName] = self::$db->fetchAll("SHOW COLUMNS FROM `{$tableName}`");
+                    self::$_tables[] = $tableName;                    
                 }else
                     throw new X3_Exception ("$tableName creation failed! Try manualy...", '500');
             } else {
@@ -63,7 +62,7 @@ class X3_Model extends X3_Component implements ArrayAccess{
     public function createTable($recreate = false) {
         $select = array();
         //TODO: must be without _fields to function along without X3_Module
-        $this->_alter_stack[$this->tableName] = $this->_queries[$this->tableName];
+        $this->_alter_stack[$this->tableName] = self::$_queries[$this->tableName];
         foreach ($this->module->_fields as $name => $field) {
             //storing special attributes for any cases
             if(in_array('unused',$field)) continue;
@@ -72,8 +71,10 @@ class X3_Model extends X3_Component implements ArrayAccess{
         }
         $this->_alter_stack[$this->tableName]->action = "CREATE/TABLE";
         $this->_alter_stack[$this->tableName]->select = implode(', ', $select);
-        if($res = $this->applyStack())
+        if($res = $this->applyStack()){
+            self::$_columns[$this->tableName] = self::$db->fetchAll("SHOW COLUMNS FROM `{$this->tableName}`");
             $this->verifyTable();
+        }
         return $res;
     }
     protected function applyStack() {
@@ -104,7 +105,10 @@ class X3_Model extends X3_Component implements ArrayAccess{
 
     public function verifyTable() {
         //Go through defined fields and manage database
+        if(!isset(self::$_columns[$this->tableName]))
+            self::$_columns[$this->tableName] = self::$db->fetchAll("SHOW COLUMNS FROM `{$this->tableName}`");
         $columns = self::$_columns[$this->tableName];
+        if(is_null($columns)) return false;
         foreach ($this->module->_fields as $name => $field) {
             $found = false;
             $change = false;
@@ -130,7 +134,7 @@ class X3_Model extends X3_Component implements ArrayAccess{
                     $modifyField = $k['Field'];
                     if(isset($diff['Key']) && $diff['Key']!=''){
                         if($k['Key']=='MUL' || $k['Key']=='UNI'){
-                            $Query = new X3_Query($this->tableName,get_class($this->module));
+                            $Query = new X3_Query($this->tableName,$this->module);
                             $Query->action = 'ALTER/TABLE/DROP';
                             $Query->select = "INDEX `{$name}`";
                             $Query->execute();
@@ -141,7 +145,7 @@ class X3_Model extends X3_Component implements ArrayAccess{
                                 $found=true;
                                 $change=false;
                             }
-                            $Query = new X3_Query($this->tableName,get_class($this->module));
+                            $Query = new X3_Query($this->tableName,$this->module);
                             $Query->action = 'ALTER/TABLE/ADD';
                             $Query->select = "$what (`{$name}`)";
                             $this->_alter_stack[$name.'_INDEX'] = $Query;
@@ -155,7 +159,7 @@ class X3_Model extends X3_Component implements ArrayAccess{
 
             //check if field is multilanguage
             if (!$found || $change) {
-                $Query = new X3_Query($this->tableName,get_class($this->module));
+                $Query = new X3_Query($this->tableName,$this->module);
                 $Query->action = 'ALTER/TABLE';
                 $Query->tables = $this->tableName;
                 $this->_alter_stack[$name] = $Query;
@@ -368,7 +372,7 @@ class X3_Model extends X3_Component implements ArrayAccess{
             }
             if($dataType=='datetime') $arg=11;
             if($dataType=='email') $arg=255;
-            if($arg) {
+            if($arg && $dataType!='float') {
                 if(strpos($arg,'|')!==false){
                     $arg = explode('|',$arg);
                     $min = array_shift($arg);
@@ -521,7 +525,7 @@ class X3_Model extends X3_Component implements ArrayAccess{
             $class = new $class();
             return $class->table->select('*')->where("$key={$this->$name}")->asObject(true);
         }
-        $obj = $this->_queries[$this->tableName];
+        $obj = self::$_queries[$this->tableName];
         return call_user_func_array(array($obj,$name), $parameters);
         if(method_exists($obj, $name)){
         /* Parent fieldset

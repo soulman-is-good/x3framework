@@ -32,7 +32,7 @@ class X3_Form extends X3_Renderer {
 
     public function input($value='',$attributes=array()) {
         $attributes['type'] = !isset($attributes['type'])?'text':$attributes['type'];
-        if((is_a($this->module,'X3_Model') && isset($this->module[$value])) || (is_a($this->module,'X3_Module_Table') && isset($this->module->table[$value]))){
+        if((($this->module instanceof X3_Model) && isset($this->module[$value])) || (($this->module instanceof X3_Module_Table) && isset($this->module->table[$value]))){
             $attributes['name'] = !isset($attributes['name'])?get_class($this->module) . '[' . $value . ']':$attributes['name'];
             $attributes['id'] = !isset($attributes['id'])?get_class($this->module) . '_' . $value:$attributes['id'];
             $attributes['value'] = $this->module->$value;
@@ -44,7 +44,8 @@ class X3_Form extends X3_Renderer {
 
     public function checkbox($checked=false,$attributes=array()) {
         $attributes['type'] = !isset($attributes['type'])?'checkbox':$attributes['type'];
-        if((is_a($this->module,'X3_Model') && isset($this->module["$checked"])) || (is_a($this->module,'X3_Module_Table') && isset($this->module->table["$checked"]))){
+        $value = "$checked";
+        if((($this->module instanceof X3_Model) && isset($this->module[$value])) || (($this->module instanceof X3_Module_Table) && isset($this->module->table[$value]))){
             $attributes['name'] = !isset($attributes['name'])?get_class($this->module) . '[' . $checked . ']':$attributes['name'];
             $attributes['id'] = !isset($attributes['id'])?get_class($this->module) . '_' . $checked:$attributes['id'];
             if($this->module->$checked)
@@ -64,7 +65,8 @@ class X3_Form extends X3_Renderer {
     public function textarea($text='',$attributes=array()) {
         $attributes['rows'] = !isset($attributes['rows'])?7:$attributes['rows'];
         $attributes['cols'] = !isset($attributes['cols'])?30:$attributes['cols'];
-        if((is_a($this->module,'X3_Model') && isset($this->module[$text])) || (is_a($this->module,'X3_Module_Table') && isset($this->module->table[$text]))){
+        $value = $text;
+        if((($this->module instanceof X3_Model) && isset($this->module[$value])) || (($this->module instanceof X3_Module_Table) && isset($this->module->table[$value]))){
             $attributes['name'] = !isset($attributes['name'])?get_class($this->module) . '[' . $text . ']':$attributes['name'];
             $attributes['id'] = !isset($attributes['id'])?get_class($this->module) . '_' . $text:$attributes['id'];
             $attributes['%content'] = $this->module->$text;
@@ -74,7 +76,22 @@ class X3_Form extends X3_Renderer {
         return X3_Html::form_tag('textarea', $attributes);
     }
 
-    public function select($options=array(),$attributes=array()) {
+    public function file($text='',$attributes=array()) {
+        $attributes['type'] = 'file';
+        $value = $text;
+        if((($this->module instanceof X3_Model) && isset($this->module[$value])) || (($this->module instanceof X3_Module_Table) && isset($this->module->table[$value]))){
+            $attributes['name'] = !isset($attributes['name'])?get_class($this->module) . '[' . $text . ']':$attributes['name'];
+            $attributes['id'] = !isset($attributes['id'])?get_class($this->module) . '_' . $text:$attributes['id'];
+            $attributes['value'] = $this->module->$text;
+            if(!isset($attributes['%content'])) $attributes['%content'] = "";
+            $attributes['%content'] .= X3_Html::form_tag('input', array('type'=>'hidden','name'=>get_class($this->module) . '[' . $value . '_source]','value'=>$this->module->$text));
+        }
+        else
+            $attributes['name'] = $text;
+        return X3_Html::form_tag('input', $attributes);
+    }
+
+    public function select($options=array(),$attributes=array()) {        
         if(is_array($options)){
             $ops='';
             foreach($options as $option){
@@ -82,10 +99,10 @@ class X3_Form extends X3_Renderer {
             }
             $attributes['%content'] = $ops;
             return X3_Html::form_tag('select',$attributes);
-        }elseif((is_a($this->module,'X3_Model') && isset($this->module[$options])) || (is_a($this->module,'X3_Module_Table') && isset($this->module->table[$options]))){
+        }elseif((($this->module instanceof X3_Model) && isset($this->module[$options])) || (($this->module instanceof X3_Module_Table) && isset($this->module->table[$options]))){
             $attributes['name'] = !isset($attributes['name'])?get_class($this->module) . '[' . $options . ']':$attributes['name'];
             $attributes['id'] = !isset($attributes['id'])?get_class($this->module) . '_' . $options:$attributes['id'];
-            if(!isset($attributes['%select'])) {                
+            if(!isset($attributes['%select'])) {
                 $attributes['%select'] = array('id','title');
             }
             $id = array_shift($attributes['%select']);
@@ -104,14 +121,19 @@ class X3_Form extends X3_Renderer {
                 $class = $class->table->select("`$id`, `$value`")->where($where)->asObject();
                 foreach($class as $m){
                     //TODO: OPTIMIZE references
-                    $module = $m->$options();
+                    //$module = $m->$options();
+                    if($this->module->$options == $m->$id)
+                        $attr['selected'] = "selected";
                     $attr['value'] = $m->$id;
                     $attr['%content'] = $m->$value;
                     $ops .= X3_Html::form_tag('option',$attr);
                 }
             }
             unset($attributes['%select']);
-            $attributes['%content'] = $ops;
+            if(!isset($attributes['%content']))
+                $attributes['%content'] = $ops;
+            else
+                $attributes['%content'] .= $ops;
             return X3_Html::form_tag('select',$attributes);
         }
     }

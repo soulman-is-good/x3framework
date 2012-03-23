@@ -133,9 +133,12 @@ class X3_App extends X3_Component {
                     $dirs[$i] = $this->APPLICATION_DIR . DIRECTORY_SEPARATOR . $this->HELPERS_DIR;
                 elseif ($dir == "MODELS_DIR" || $dir == "@models")
                     $dirs[$i] = $this->APPLICATION_DIR . DIRECTORY_SEPARATOR . $this->MODELS_DIR;
+                elseif($dir == "")
+                    unset($dirs[$i]);
             }
             $path = $this->basePath . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $dirs);
-        }
+        }elseif($path=="")
+            return $this->basePath;
         return $path;
     }
 
@@ -173,7 +176,7 @@ class X3_App extends X3_Component {
         return $this->module;
     }
 
-    public function handleException($exception) {
+    public function handleException($exception) {        
         if (($trace = $this->getExactTrace($exception)) === null) {
             $fileName = $exception->getFile();
             $errorLine = $exception->getLine();
@@ -192,8 +195,8 @@ class X3_App extends X3_Component {
         if (!headers_sent())
             header("HTTP/1.0 {$data['code']} " . get_class($exception));
         if ($this->errorHandler != null) {
-            $this->errorHandler = new $this->errorHandler($this->errorAction);
-            $this->errorHandler->run();
+            $this->errorHandler = new $this->errorHandler($this->errorAction);            
+            $this->errorHandler->controller->run();
         }else
             $this->displayException($exception);
     }

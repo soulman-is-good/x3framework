@@ -34,8 +34,13 @@ class X3_Html extends X3_Component {
         $attr="";
         switch ($tag) {
             case "input":
+                $content="";
+                if(isset($attributes['%content'])){
+                    $content = $attributes['%content'];
+                    unset($attributes['%content']);
+                }
                 $attr = self::compileAttrs($attributes);
-                return "<$tag $attr />";
+                return "<$tag $attr />" . $content;
                 break;
             case "option":
             case "select":
@@ -104,10 +109,11 @@ class X3_Html extends X3_Component {
     {
             return '<script type="text/javascript" src="'.self::encode($url).'"></script>';
     }
-    public static function compileAttrs($attributes) {
+    public static function compileAttrs($attributes,$strict=true) {
         $attr="";
         if(!empty($attributes))
         foreach($attributes as $k=>$a){
+            if($strict && strpos($k,'%')===0) continue;
             $attr .= $k.'="'.htmlspecialchars($a).'" ';
         }
         return $attr;

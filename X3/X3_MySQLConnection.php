@@ -64,9 +64,9 @@ class X3_MySQLConnection extends X3_Component {
 
     public function fetch($sql=null) {
         $res = $this->query($sql);
-        if(is_bool($res))
-            return $res;
-        return mysql_fetch_assoc($res);
+        if(is_resource($res))
+            return mysql_fetch_assoc($res);
+        return false;
     }
 
     public function query($sql=null,$pass=true) {

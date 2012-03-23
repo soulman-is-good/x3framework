@@ -20,6 +20,10 @@ class X3_Query extends X3_Component{
         //return call_user_func(array($class,'__construct'),$args);
     }
 
+    public function getQueryClass() {
+        return $this->class;
+    }
+
     public function __get($name) {
         if(property_exists($this->class,$name))
             return $this->class->$name;

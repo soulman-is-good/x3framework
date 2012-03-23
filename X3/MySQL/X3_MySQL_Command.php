@@ -85,6 +85,7 @@ class X3_MySQL_Command extends X3_Command {
      * @var string <p>using in LIMIT $offset,$limit</p>
      */
     public $offset = 0;
+    public $join = "";
 
     public function __construct($params) {
         if(is_array($params)){
@@ -120,7 +121,7 @@ class X3_MySQL_Command extends X3_Command {
                 $sql = "CREATE $what $do " . $this->tables . " ($this->select)";
                 break;
             case "SELECT":
-            $sql = "SELECT " . $this->select . " FROM " . $this->tables .
+                $sql = "SELECT " . $this->select . " FROM `" . $this->tables . "` " . $this->join .
                     " WHERE " . $this->condition .
                     ((empty($this->group))?"":" GROUP BY ".$this->group).
                     ((empty($this->order))?"":" ORDER BY ".$this->order);
