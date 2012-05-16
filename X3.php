@@ -8,7 +8,7 @@
 /**
  * X3 Framework
  *
- * PHP Version >= 4.3.0
+ * PHP Version >= 5.2.0
  * @author soulman, darell
  */
 
@@ -22,8 +22,8 @@ defined('X3_DEBUG') or define('X3_DEBUG', FALSE);
 defined('X3_ENABLE_EXCEPTION_HANDLER') or define('X3_ENABLE_EXCEPTION_HANDLER', TRUE);
 defined('X3_ENABLE_ERROR_HANDLER') or define('X3_ENABLE_ERROR_HANDLER', TRUE);
 defined('IS_AJAX') or define('IS_AJAX', isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
-defined('IS_SAME_HOST') or define('IS_SAME_HOST', isset($_SERVER['HTTP_HOST']) && isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], $_SERVER['HTTP_HOST']) > 0);
-defined('IS_SAME_AJAX') or define('IS_SAME_AJAX', IS_AJAX && IS_SAME_HOST);
+defined('IS_SAME_DOMAIN') or define('IS_SAME_DOMAIN', !isset($_SERVER['HTTP_REFERER']) || (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_REFERER'], $_SERVER['HTTP_HOST']) > 0));
+defined('IS_SAME_AJAX') or define('IS_SAME_AJAX', IS_AJAX && IS_SAME_DOMAIN);
 defined('IS_FLASH') or define('IS_FLASH', isset($_SERVER['HTTP_X_FLASH_VERSION']) || stripos($_SERVER['HTTP_USER_AGENT'],'Flash') > 0);
 defined('IS_IE') or define('IS_IE', isset($_SERVER['HTTP_USER_AGENT']) && (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE') !== false));
     $version = explode('.', PHP_VERSION);
@@ -48,7 +48,7 @@ class X3 {
      * @return string version of X3 framework
      */
     public static function getVersion() {
-        return '1.0.0b';
+        return '1.1.0b';
     }
 
     /**
@@ -56,7 +56,7 @@ class X3 {
      * @param string $config is a path to a config file
      * @return X3_Application;
      */
-    public static function init($config=NULL) {
+    public static function init($config=NULL) {        
         if(X3_DEBUG) {
             ini_set('display_errors', 1);
             error_reporting(E_ALL & ~E_NOTICE);
@@ -93,24 +93,25 @@ class X3 {
      */
     public static function autoload($className) {
         $path = explode('_',$className);
-        if(sizeof($path)==1) {
-            $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->MODULES_DIR . DIRECTORY_SEPARATOR . $className . '.php';
-            if(is_file($file))
-                include($file);
-            $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->HELPERS_DIR . DIRECTORY_SEPARATOR . $className . '.php';
-            if(is_file($file))
-                include($file);
-        }else {
+        if(sizeof($path)>1) {
             array_pop($path);
-            $className=BASE_PATH . DIRECTORY_SEPARATOR .
-                implode(DIRECTORY_SEPARATOR , $path) .
-                DIRECTORY_SEPARATOR . $className . '.php';
-            if(!is_file($className))
-                $className=self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR .
-                    implode(DIRECTORY_SEPARATOR , $path) .
-                    DIRECTORY_SEPARATOR . $className . '.php';
-            include($className);
-        }
+            $path = implode(DIRECTORY_SEPARATOR , $path) . DIRECTORY_SEPARATOR . $className . '.php';
+            $file=BASE_PATH . DIRECTORY_SEPARATOR . $path;
+            if(is_file($file)){
+               include($file);
+               return true;
+            }else
+                $path = str_replace ('_', DIRECTORY_SEPARATOR, $className) . '.php';
+        }else
+            $path = $className . '.php';
+        $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->MODULES_DIR . DIRECTORY_SEPARATOR . $path;
+        if(!file_exists($file))
+            $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->HELPERS_DIR . DIRECTORY_SEPARATOR . $className
+                                                                                                    . DIRECTORY_SEPARATOR . $path;
+        if(!file_exists($file))
+            $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->HELPERS_DIR . DIRECTORY_SEPARATOR . $path;
+        if(is_file($file))
+            include($file);
         return true;
     }
 
@@ -143,7 +144,7 @@ class X3 {
         spl_autoload_register(array('X3', 'autoload'));
     }
 
-    public static function log($msg,$category='application') {        
+    public static function log($msg,$category='application') {
         self::$_app->log->processLog($msg,$category);
        //echo "<pre>X3 LOG UNDONE!!! : ".$msg."</pre>";
     }

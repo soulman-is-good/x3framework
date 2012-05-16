@@ -6,7 +6,17 @@
  */
 
 /**
- * Description of X3_Module
+ * @since v0.1.0b
+ * X3_Module class that extands X3_Model and X3_Controller by the chain
+ * 
+ * @since v1.0.0b
+ * implementation where separated. And permanent links where created $controller and $table
+ * 
+ * @since v1.1.0b
+ * X3_Module were divided in to X3_Module and X3_Module_Table to separate database logic from standart controller
+ * 
+ * @since v2.0
+ * X3_Module must become a Mediator-like class to extend
  *
  * @author Soul_man
  */

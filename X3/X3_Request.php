@@ -46,7 +46,7 @@ class X3_Request extends X3_Component {
     public function resolveURI($uri) {
         $url = trim($uri, '/');
         $this->parse_query($url);        
-        $this->stack = $uri = explode('/', $url);
+        $this->uri = $uri = explode('/', $url);
         $controller = (!empty($uri[0])) ? array_shift($uri) : 'site';
         $action = (!empty($uri[0])) ? array_shift($uri) : 'index';
         if (strpos($action, '.') !== false)

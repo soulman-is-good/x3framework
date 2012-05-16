@@ -8,23 +8,28 @@
  * 21.11.2010 0:00:57
  */
 class X3_App extends X3_Component {
+    /**
+     * Defines how much lines will be shown before and after broken line in error handlers
+     */
+
+    const ERROR_OUTPUT_RADIUS = 5;
 
     public static $user = null;
     public $cs = null;
     private $request = null;
     private static $_components = array(
+        'log' => array(
+            'class' => 'X3_LogRouter'
+        ),
         'db' => array(
             'class' => 'X3_MySQLConnection',
         ),
-        'cache'=>array(
-            'class'=>'X3_Cache_File'
+        'cache' => array(
+            'class' => 'X3_Cache_File'
         ),
-        'router'=>array(
-            'class'=>'X3_Router'
+        'router' => array(
+            'class' => 'X3_Router'
         ),
-        'log'=>array(
-            'class'=>'X3_LogRouter'
-        )
     );
     public $APPLICATION_DIR = 'application';
     public $HELPERS_DIR = 'helpers';
@@ -37,16 +42,19 @@ class X3_App extends X3_Component {
     public $locale = 'ru_RU';
     public $encoding = 'UTF-8';
     public $languages = array();
+
     /**
      * @var X3_Module class exemplar
      */
     private $module = null;
+
     /**
      * @var X3_Controller error handling Controller/Action variable
      */
     public $errorController = null;
     protected $errorHandler = null;
     protected $errorAction = 'actionIndex';
+
     /**
      *
      * @var string Default application name
@@ -64,7 +72,7 @@ class X3_App extends X3_Component {
                 switch ($name) {
                     case 'uri':
                         $this->request = new X3_Request($value);
-                        list($module,$action) = $this->request->resolveURI($_SERVER['REQUEST_URI']);
+                        list($module, $action) = $this->request->resolveURI($_SERVER['REQUEST_URI']);
                         break;
                     default:
                         break;
@@ -79,20 +87,29 @@ class X3_App extends X3_Component {
         $this->user = new X3_User();
         if (isset($config['components']))
             $this->initComponents($config['components']);
-        $this->fire('onStartApp',array(&$module,&$action));
+        $this->fire('onStartApp', array(&$module, &$action));
 
-        $module = ucfirst(strtolower($module));
-        $c_path = $this->basePath . DIRECTORY_SEPARATOR .
-                $this->APPLICATION_DIR . DIRECTORY_SEPARATOR .
-                $this->MODULES_DIR . DIRECTORY_SEPARATOR .
-                $module . '.php'; //Path to the module
-        if (!is_file($c_path))
-            if (X3_DEBUG)
-                throw new X3_Exception('No module "' . $module . '" found!', 500);
-            else
-                throw new X3_404();
-        require_once($c_path);
-        $this->module = new $module($action);
+        //$module = (string) X3_String::create($module)->lcfirst();
+        if (class_exists($module))
+            $this->module = new $module($action);
+        else {
+            $c_path = $this->basePath . DIRECTORY_SEPARATOR .
+                    $this->APPLICATION_DIR . DIRECTORY_SEPARATOR .
+                    $this->MODULES_DIR . DIRECTORY_SEPARATOR .
+                    $module . '.php'; //Path to the module
+            if (!is_file($c_path))
+                $c_path = $this->basePath . DIRECTORY_SEPARATOR .
+                        $this->APPLICATION_DIR . DIRECTORY_SEPARATOR .
+                        $this->MODULES_DIR . DIRECTORY_SEPARATOR .
+                        $module . DIRECTORY_SEPARATOR . $module . '.php'; //Path to the module
+            if (!is_file($c_path))
+                if (X3_DEBUG)
+                    throw new X3_Exception('No module "' . $module . '" found!', 500);
+                else
+                    throw new X3_404();
+            require_once($c_path);
+            $this->module = new $module($action);
+        }
         return $this;
     }
 
@@ -113,6 +130,7 @@ class X3_App extends X3_Component {
                 $class = $component['class'];
                 unset($component['class']);
                 self::$_components[$name] = new $class($component);
+                self::$_components[$name]->init();
             }
         }
     }
@@ -133,11 +151,11 @@ class X3_App extends X3_Component {
                     $dirs[$i] = $this->APPLICATION_DIR . DIRECTORY_SEPARATOR . $this->HELPERS_DIR;
                 elseif ($dir == "MODELS_DIR" || $dir == "@models")
                     $dirs[$i] = $this->APPLICATION_DIR . DIRECTORY_SEPARATOR . $this->MODELS_DIR;
-                elseif($dir == "")
+                elseif ($dir == "")
                     unset($dirs[$i]);
             }
             $path = $this->basePath . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $dirs);
-        }elseif($path=="")
+        }elseif ($path == "")
             return $this->basePath;
         return $path;
     }
@@ -168,15 +186,15 @@ class X3_App extends X3_Component {
         return X3_Session::getInstance();
     }
 
-    public function getRequest(){
+    public function getRequest() {
         return $this->request;
     }
 
-    public function getModule(){
+    public function getModule() {
         return $this->module;
     }
 
-    public function handleException($exception) {        
+    public function handleException($exception) {
         if (($trace = $this->getExactTrace($exception)) === null) {
             $fileName = $exception->getFile();
             $errorLine = $exception->getLine();
@@ -195,7 +213,7 @@ class X3_App extends X3_Component {
         if (!headers_sent())
             header("HTTP/1.0 {$data['code']} " . get_class($exception));
         if ($this->errorHandler != null) {
-            $this->errorHandler = new $this->errorHandler($this->errorAction);            
+            $this->errorHandler = new $this->errorHandler($this->errorAction);
             $this->errorHandler->controller->run();
         }else
             $this->displayException($exception);
@@ -269,10 +287,27 @@ class X3_App extends X3_Component {
     public function displayError($code, $message, $file, $line) {
         if (X3_DEBUG) {
             echo "<h1>PHP Error [$code]</h1>\n";
-            echo "<p>$message ($file:$line)</p>\n";
-            echo '<pre>';
-            debug_print_backtrace();
-            echo '</pre>';
+            $trace = array_slice(debug_backtrace(), 2);
+            array_unshift($trace, array('file' => $file, 'line' => $line, 'class' => $message));
+            foreach ($trace as $debug) {
+                $file = $debug['file'];
+                $line = $debug['line'];
+                $message = $debug['class'];
+                $filename = pathinfo($file, PATHINFO_BASENAME);
+                echo "<p>$message (<b>$filename</b>:$line)</p>\n";
+                if (is_file($file)) {
+                    $lines = file($file);
+                    $total = count($lines);
+                    $width = strlen((string) ($line + self::ERROR_OUTPUT_RADIUS)) * 10;
+                    for ($i = $line - self::ERROR_OUTPUT_RADIUS; $i < $line + self::ERROR_OUTPUT_RADIUS; $i++) {
+                        if (array_key_exists($i, $lines)) {
+                            $lines[$i] = htmlspecialchars($lines[$i]);
+                            echo "<div style=\"margin:0 0 0 40px;background-color:" . (($i == $line - 1) ? '#FCBFBF' : '#F28A8A') . ";border-left:2px solid #D11212\"><div style=\"float:left;width:{$width}px;background:#FFEDED;border-right:1px solid #D11212;color:#c1c1c1\">" . ($i + 1) . "</div><div>&nbsp;{$lines[$i]}</div></div>\n";
+                        }
+                    }
+                }
+            }
+            exit;
         } else {
             echo "<h1>PHP Error [$code]</h1>\n";
             echo "<p>$message</p>\n";
@@ -286,10 +321,32 @@ class X3_App extends X3_Component {
      * @param Exception the uncaught exception
      */
     public function displayException($exception) {
+        $file = $exception->getFile();
+        $line = $exception->getLine();
         if (X3_DEBUG) {
-            echo '<h1>' . get_class($exception) . "</h1>\n";
-            echo '<p>' . $exception->getMessage() . ' (' . $exception->getFile() . ':' . $exception->getLine() . ')</p>';
-            echo '<pre>' . $exception->getTraceAsString() . '</pre>';
+            $trace = $exception->getTrace();
+            array_unshift($trace, array('file' => $file, 'line' => $line, 'class' => $exception->getMessage()));
+            echo '<h1>' . get_class($exception) . "[" . $exception->getCode() . "]</h1>\n";
+            foreach ($trace as $debug) {
+                $file = $debug['file'];
+                $line = $debug['line'];
+                $message = $debug['class'];
+                $filename = pathinfo($file, PATHINFO_BASENAME);
+                echo "<p>$message (<b>$filename</b>:$line)</p>\n";
+                if (is_file($file)) {
+                    $lines = file($file);
+                    $total = count($lines);
+                    $width = strlen((string) ($line + self::ERROR_OUTPUT_RADIUS)) * 10;
+                    for ($i = $line - self::ERROR_OUTPUT_RADIUS; $i < $line + self::ERROR_OUTPUT_RADIUS; $i++) {
+                        if (array_key_exists($i, $lines)) {
+                            $lines[$i] = htmlspecialchars($lines[$i]);
+                            echo "<div style=\"margin:0 0 0 40px;background-color:" . (($i == $line - 1) ? '#FCBFBF' : '#F28A8A') . ";border-left:2px solid #D11212\"><div style=\"float:left;width:{$width}px;background:#FFEDED;border-right:1px solid #D11212;color:#c1c1c1\">" . ($i + 1) . "</div><div>&nbsp;{$lines[$i]}</div></div>\n";
+                        }
+                    }
+                }
+            }
+            //echo '<pre>' . $exception->getTraceAsString() . '</pre>';
+            exit;
         } else {
             echo '<h1>' . get_class($exception) . "</h1>\n";
             echo '<p>' . $exception->getMessage() . '</p>';
@@ -301,9 +358,9 @@ class X3_App extends X3_Component {
      */
     protected function initSystemHandlers() {
         $ehandle = explode('/', $this->errorController);
-        $econtroller = ucfirst(strtolower($ehandle[0]));
+        $econtroller = (string) X3_String::create($ehandle[0])->lcfirst();
         if (isset($ehandle[1]))
-            $this->errorAction = strtolower($ehandle[1]);
+            $this->errorAction = (string) X3_String::create($ehandle[1])->lcfirst();
         $c_path = $this->basePath . DIRECTORY_SEPARATOR .
                 $this->APPLICATION_DIR . DIRECTORY_SEPARATOR .
                 $this->MODULES_DIR . DIRECTORY_SEPARATOR .
@@ -321,4 +378,5 @@ class X3_App extends X3_Component {
     }
 
 }
+
 ?>

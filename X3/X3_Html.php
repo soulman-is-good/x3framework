@@ -46,7 +46,7 @@ class X3_Html extends X3_Component {
             case "select":
             case "textarea":
                 $content="";
-                if(isset($attributes['%content'])){
+                if(is_array($attributes) && isset($attributes['%content'])){
                     $content = $attributes['%content'];
                     unset($attributes['%content']);
                 }
@@ -111,7 +111,7 @@ class X3_Html extends X3_Component {
     }
     public static function compileAttrs($attributes,$strict=true) {
         $attr="";
-        if(!empty($attributes))
+        if(is_array($attributes) && !empty($attributes))
         foreach($attributes as $k=>$a){
             if($strict && strpos($k,'%')===0) continue;
             $attr .= $k.'="'.htmlspecialchars($a).'" ';

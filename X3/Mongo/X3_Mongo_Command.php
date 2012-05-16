@@ -9,31 +9,26 @@
  *
  * @author Soul_man
  */
-class X3_MySQL_Command extends X3_Command {
+class X3_Mongo_Command extends X3_Command {
 
     /**
-     * @var string <p>Using for define what kind of a query this command will be.
-     * Can be "SELECT", "UPDATE", "INSERT", "DROP" or "TRUNCATE"</p>
+     * @var string <p>Using for define what kind of function will be called.
+     * Can be "find", "insert", "update"...</p>
      */
-    public $action = "SELECT";
+    public $action = "find";
 
-    /**
-     * @var string <p>This is a private variable for storing SQL query</p>
-     */
-    private $_sql = "";
-    
-    public $recreate = false;
     /**
      * @var string
-     * <p>tables which will be used in query.</p>
+     * <p>collection names.</p>
      * can be defined in this way:
      * <ul>
      *      <li>`table1` or `table1` AS `t1` - for single table</li>
      *      <li>`table1`, `table2` AS `t2` - for multitable query</li>
      * </ul>
      */
-    public $tables = "";
-    public $as = array();
+    public $collection = "";
+
+    public $recreate = false;
 
     /**
      * @var string <p>variable for SELECT action.
@@ -42,7 +37,7 @@ class X3_MySQL_Command extends X3_Command {
      * or for use in ALTER <b>`id` `ID`</b>
      * e.g.: <i>ALTER TABLE `users` CHANGE `id` `ID`</i></p>
      */
-    public $select = "*";
+    public $select = array();
 
     /**
      * @var string <p>for use in UPDATE or INSERT actions.
@@ -65,7 +60,7 @@ class X3_MySQL_Command extends X3_Command {
     /**
      * @var string <p>WHERE condition such as it is</p>
      */
-    public $condition = "1";
+    public $condition = array();
 
     /**
      * @var string <p>ORDER BY conditions</p>
@@ -101,42 +96,11 @@ class X3_MySQL_Command extends X3_Command {
     }
 
     public function buildSQL(){
-        if(is_array($this->tables))
-            $this->tables = '`'.implode('`, `', $this->tables).'`';
-        else 
-            $this->tables = "`$this->tables`";
-        foreach($this->as as $table=>$as){
-            $this->tables = str_replace("`$table`", "`$table` AS $as", $this->tables);
-        }
-        if(strpos($this->action, '/')!==false){
-            $actions = explode('/',$this->action);
-            $this->action = array_shift($actions);
-        }
-        //TODO apostrofy all fields - "`"
         switch ($this->action) {
-            case "CREATE":
-                if(!empty($actions))
-                    $what = array_shift($actions);
-                else
-                    $what = "TABLE";
-                $do = false;
-                if(!empty($actions))
-                    $do = array_shift($actions);
-                
-                if($this->recreate && !$do)
-                    $do = "DROP IF EXISTS";
-                else
-                    $do = "";
-                $attributes = '';
-                if($what == 'TABLE')
-                    $attributes = "($this->select)";
-                $sql = "CREATE $what $do " . $this->tables . " $attributes";
-                break;
-            case "SELECT":
-                $sql = "SELECT " . $this->select . " FROM " . $this->tables . " " . $this->join .
-                    " WHERE " . $this->condition .
-                    ((empty($this->group))?"":" GROUP BY ".$this->group).
-                    ((empty($this->order))?"":" ORDER BY ".$this->order);
+            case "find":
+                if($this->recreate)
+                    X3::app()->db->query(array("$this->collection:drop"=>array()));
+                $query = array("$this->collection:$this->action"=>array($this->condition,));
                 if($this->limit > 0)
                     $sql .= " LIMIT " . (($this->offset>0)?"$this->offset,$this->limit":"$this->limit");
                 break;
@@ -166,12 +130,9 @@ class X3_MySQL_Command extends X3_Command {
                     $do = $what;
                     $what = "TABLE";
                 }
-                if((empty($this->select) || $this->select === "*") && $what == "TABLE") {
+                if(empty($this->select) || $this->select === "*") {
                     //TODO: more logging, tracing
                     throw new X3_Exception ("Fields to ALTER is not specified", 500);
-                }elseif($what=="VIEW"){
-                    $this->select = "";
-                    $this->dataType = "";
                 }
                 $sql = "ALTER $what " . $this->tables . " $do $this->select $this->dataType";
                 break;

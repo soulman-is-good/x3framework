@@ -23,8 +23,9 @@ class X3_LogRouter extends X3_Component {
     public function processLog($msg,$category) {
         foreach(self::$_stack as $log){
             $cs = $log->getCategory();
-            if($cs[0] == '*' || in_array($category,$cs))
+            if($cs[0] == '*' || in_array($category,$cs)){         
                 $log->processLog($msg);
+            }
         }
     }
 

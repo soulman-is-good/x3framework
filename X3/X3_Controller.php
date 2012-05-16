@@ -20,9 +20,9 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
         $this->action = $action;
         $this->module = $module;
         if ($module !== null)
-            $this->id = strtolower(get_class($module));
+            $this->id = (string)X3_String::create(get_class($module))->lcfirst();
         else
-            $this->id = strtolower(get_class($this));
+            $this->id = (string)X3_String::create(get_class($this))->lcfirst();
         if (!$this->handleFilters()) {
             $this->redirect(X3::app()->errorController);
         }
@@ -43,8 +43,7 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
             $this->fire('onRender',array(&$output));
             echo $output;
             $this->fire('afterAction');
-        }else{
-            $this->fire('beforeAction',array(&$action));
+        }else{            
             $this->module->$action();
             $this->fire('afterAction');
         }

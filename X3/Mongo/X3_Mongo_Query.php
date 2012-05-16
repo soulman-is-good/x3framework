@@ -9,7 +9,7 @@
  *
  * @author Soul_man
  */
-class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
+class X3_Mongo_Query extends X3_MySQL_Command implements X3_Interface_Query {
 
     private $class = null;
 
@@ -243,8 +243,7 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
         }
         if(empty($models)) return array();
         foreach ($models as $i=>$model) {
-            $class = X3::app()->db->modelClass;
-            $tmp = new $class($module->tableName,$module);
+            $tmp = new X3_Model($module->tableName,$module);
             $tmp->accuire($model);
             $module->push($tmp);
             if($i==0)
@@ -281,53 +280,15 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
         $sql = $this->buildSQL();
         return X3::app()->db->query($sql);
     }
-    
-    public function formQuery($params = array()) {
-        if(count($params)==0){
-            $this->where('1');
-            return $this;
-        }
-        $key = strtolower(key($params));
-        if(!in_array($key, array('join','condition','limit','order','offset'))){
-            $tmp = $params;
-            $params = array();
-            $params['condition'] = $tmp;
-            unset($tmp);
-        }
-        foreach($params as $key=>$array){
-            $key = strtolower($key);
-            switch($key){
-                case "join":
-                    $this->join($this->formJoin($array));
-                    break;
-                case "condition":
-                    $this->where($this->formCondition($array));
-                    break;
-                case "limit":
-                    $this->limit($array);
-                    break;
-                case "offset":
-                    $this->offset($array);
-                    break;
-                case "order":
-                    if(is_array($array))
-                        $this->order('`'.implode('`, `',$array).'`');
-                    else
-                        $this->order($array);
-                    break;
-            }
-        }
-        return $this;       
-    }
 
-    public function formCondition($params=array()){
+    public function formQuery($params=array()){
         $query = "";
         $dub = $params;
         for($v = current($params);$v!==false;$v = next($params)){
             $nv = next($dub);
             $k = key($params);
             $v = current($params);
-            if(is_array($v) && is_integer($k)){
+            if(is_array($v)){
                 if($nv!==false){
                     if(is_array($nv))
                         $query .= "(" . $this->formQuery($v) . ") OR ";
@@ -345,43 +306,16 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
                     $oper = key($v);
                     $v = current($v);
                 }
-                if(strpos($k,'.')>0)
-                    $k = str_replace ('.', '`.`', $k);
                 if($v=='NULL' || $v===NULL || $v=='NOT NULL'){
                     if($v===NULL)$v='NULL';
                     $s = "`$k` IS $v";
-                }elseif($oper=='=')
-                    $s = "`$k` $oper $v";
-                else
-                    $s = "`$k` $oper $v";
+                }else
+                    $s = "`$k`$oper'$v'";
                 if($nv!=false)
                     $query .= "$s AND ";
                 else
                     $query .= "$s";
             }
-        }
-        return $query;
-    }
-    
-    public function formJoin($params=array()){
-        if(!is_array(current($params))) $paramz = array($params);
-        else $paramz = $params;
-        $query = "";
-        foreach($paramz as $key=>$params)
-        if(!empty($params)){
-            //$key = key($params);
-            if(is_numeric($key)){
-                $query = "INNER JOIN ";
-            }else 
-                $query = strtoupper($key) . " JOIN ";
-            $query .= $params['table'];
-            $on = '1';
-            if(is_string($params['on'])){
-                $on = $params['on'];
-            }elseif(is_array($params['on'])){
-                $on = $this->formCondition($params['on']);
-            }
-            $query .= " ON $on";
         }
         return $query;
     }

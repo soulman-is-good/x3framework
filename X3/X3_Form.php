@@ -24,7 +24,7 @@ class X3_Form extends X3_Renderer {
     public function start($attributes=array()) {
         $this->attributes = array_extend($this->attributes,$attributes);
         if(!isset($this->attributes['id']))
-            $this->attributes['id'] = strtolower(get_class($this->module)) . '-form';
+            $this->attributes['id'] = (string)X3_String::create(get_class($this->module) . '-form')->lcfirst();
         if(!isset($this->attributes['name']))
             $this->attributes['name'] = $this->attributes['id'];
         return X3_Html::open_tag('form',$this->attributes);
@@ -49,6 +49,22 @@ class X3_Form extends X3_Renderer {
             $attributes['name'] = !isset($attributes['name'])?get_class($this->module) . '[' . $checked . ']':$attributes['name'];
             $attributes['id'] = !isset($attributes['id'])?get_class($this->module) . '_' . $checked:$attributes['id'];
             if($this->module->$checked)
+                $attributes['checked'] = "checked";
+        }else {
+            if($checked)
+                $attributes['checked'] = "checked";
+        }
+        return X3_Html::form_tag('input', $attributes);
+    }
+	
+    public function radio($checked=false,$attributes=array()) {
+        $attributes['type'] = !isset($attributes['type'])?'radio':$attributes['type'];
+        $value = "$checked";
+        if((($this->module instanceof X3_Model) && isset($this->module[$value])) || (($this->module instanceof X3_Module_Table) && isset($this->module->table[$value]))){
+            $attributes['name'] = !isset($attributes['name'])?get_class($this->module) . '[' . $checked . ']':$attributes['name'];
+            $attributes['id'] = !isset($attributes['id'])?get_class($this->module) . '_' . $checked:$attributes['id'];
+			if(!isset($attributes['value'])) $attributes['value'] = '1';
+            if($this->module->$checked == $attributes['value'])
                 $attributes['checked'] = "checked";
         }else {
             if($checked)
@@ -94,8 +110,12 @@ class X3_Form extends X3_Renderer {
     public function select($options=array(),$attributes=array()) {        
         if(is_array($options)){
             $ops='';
-            foreach($options as $option){
-                $ops.=X3_Html::form_tag('option',$option);
+            foreach($options as $key => $option){
+	            $attrs = array('%content' => $option, 'value' => $key);
+	            if (isset($attributes['%select']) && ($attributes['%select'] == $key)) {
+		            $attrs['selected'] = 'selected';
+            }
+                $ops.=X3_Html::form_tag('option', $attrs);
             }
             $attributes['%content'] = $ops;
             return X3_Html::form_tag('select',$attributes);

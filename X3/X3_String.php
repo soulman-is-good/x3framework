@@ -13,7 +13,7 @@ class X3_String extends X3_Component {
     private $string = '';
 
     public function __construct($string) {
-        $this->string = $string;
+        $this->string = (string)$string;
     }
 
     public static function create($string){
@@ -25,9 +25,10 @@ class X3_String extends X3_Component {
         $this->string = sprintf($cases[ ($number%100>4 && $number%100<20)? 2 : $case[min($number%10, 5)] ], $number);
         return $this;
     }
-
-    public function __toString() {
-        return $this->string;
+    
+    public function lcfirst() {
+        $this->string[0] = strtolower($this->string[0]);
+        return $this;
     }
 
     public function translit() {
@@ -50,6 +51,10 @@ class X3_String extends X3_Component {
         );
         $st = strtr($this->string, $tr);
         return str_replace(' ', '_', $st);
+    }
+    
+    public function __toString() {        
+        return (string)$this->string;
     }
 }
 ?>

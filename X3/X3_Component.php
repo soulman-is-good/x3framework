@@ -12,10 +12,24 @@
  *
  * 21.11.2010 1:44:28
  */
-abstract class X3_Component {
+class X3_Component {
 
     private static $_e;
     private static $_m;
+
+    public function __construct($params = array()) {
+        if (is_array($params))
+            foreach ($params as $param => $value) {
+                if ($param != '_e' && $param != '_m' && property_exists($this, $param))
+                    $this->$param = $value;
+                else
+                    X3::log("Wrong parameter passed '$param' in '" . get_class($this) . "'");
+            }
+    }
+
+    public function init() {
+        
+    }
 
     /**
      * Returns a property value, an event handler list or a behavior based on its name.
@@ -49,7 +63,7 @@ abstract class X3_Component {
                     return $object->$name;
             }
         }
-        throw new X3_Exception('Property "'.get_class($this).'.'.$name.'" is not defined.');
+        throw new X3_Exception('Property "' . get_class($this) . '.' . $name . '" is not defined.');
     }
 
     /**
@@ -83,9 +97,9 @@ abstract class X3_Component {
             }
         }
         if (method_exists($this, 'get' . $name))
-            throw new X3_Exception('Свойство "'.get_class($this).'.'.$name.'" только для чтения.');
+            throw new X3_Exception('Свойство "' . get_class($this) . '.' . $name . '" только для чтения.');
         else
-            throw new X3_Exception('Свойство "'.get_class($this).'.'.$name.'" неопределено.');
+            throw new X3_Exception('Свойство "' . get_class($this) . '.' . $name . '" неопределено.');
     }
 
     /**
@@ -142,7 +156,7 @@ abstract class X3_Component {
             }
         }
         else if (method_exists($this, 'get' . $name))
-            throw new X3_Exception('Свойство "'.get_class($this).'.'.$name.'" только для чтения.');
+            throw new X3_Exception('Свойство "' . get_class($this) . '.' . $name . '" только для чтения.');
     }
 
     /**
@@ -155,15 +169,15 @@ abstract class X3_Component {
      * @since 1.0.2
      */
     public function __call($name, $parameters) {
-        if(!$this->fire($name,$parameters))
-            throw new X3_Exception(get_class($this).' не имеет метода "'.$name.'"');
+        if (!$this->fire($name, $parameters))
+            throw new X3_Exception(get_class($this) . ' не имеет метода "' . $name . '"');
     }
 
-    public function fire($method,$parameters=array()) {
-        if(!empty(self::$_e[$method])){
-            foreach(self::$_e[$method] as $event)
-                if(method_exists($event[0], $event[1])){
-                    call_user_func_array($event,$parameters);
+    public function fire($method, $parameters = array()) {
+        if (!empty(self::$_e[$method])) {
+            foreach (self::$_e[$method] as $event)
+                if (method_exists($event[0], $event[1])) {
+                    call_user_func_array($event, $parameters);
                 }
             return true;
         }
@@ -171,8 +185,14 @@ abstract class X3_Component {
     }
 
     public function addTrigger($method) {
-        self::$_e[$method][] = array($this,$method);
+        self::$_e[$method][] = array($this, $method);
+    }
+    
+    public function stopBubbling($method) {
+        if(isset(self::$_e[$method]))
+            unset(self::$_e[$method]);
+        else
+            X3::log("No such function in bubbling stack");
     }
 
-    
 }
