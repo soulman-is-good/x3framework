@@ -78,6 +78,14 @@ class X3 {
     public static function app() {
         return self::$_app;
     }
+    
+    public static function db() {
+        return self::$_app->db;
+    }
+    
+    public static function user() {
+        return self::$_app->user;
+    }
 
     public static function setApp($app) {
         if($app!==null) {
@@ -168,9 +176,10 @@ class X3 {
     }
 
     public static function __callStatic($name, $arguments) {        
-        if(empty($arguments) && isset(self::$_app->$name))
+        if(property_exists(self::$_app,$name) || self::$_app->hasComponent($name))
             return self::$_app->$name;
-        else parent::__callStatic($name,$arguments);
+        else 
+            throw new X3_Exception("No such component '$name'");
     }
 
 }
@@ -193,6 +202,34 @@ function array_extend($a, $b) {
     }
     return $a;
 }
+}
+
+if(!function_exists('array_insert')){
+    /**
+     * 
+     * @param mixed $what what must be inserted. The behavior as array_splice
+     * @param array $where source array
+     * @param mixed $offset is key of the array where the insert should be
+     * @param integer $how means how to insert element: -1 - before; 0 -replace; 1(or other)-after
+     * @return array returns inserted array
+     */
+    function array_insert($what,&$where,$offset,$how=1) {
+        if(!is_array($what))
+            $what = (array)$what;
+        $keys = array_keys($where);
+        $values = array_values($where);
+        $wk = array_keys($what);
+        $wv = array_values($what);
+        $offset = array_search($offset,$keys);
+        $rep = 0;
+        if($how == 1)
+            $offset++;
+        if($how == 0)
+            $rep=1;   
+        array_splice($keys,$offset,$rep,$wk);
+        array_splice($values,$offset,$rep,$wv);        
+        return $where = array_combine($keys, $values);
+    } 
 }
 
 if(!function_exists('array_typecast')){

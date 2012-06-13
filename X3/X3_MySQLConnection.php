@@ -154,6 +154,14 @@ class X3_MySQLConnection extends X3_Component {
         $this->transaction = array();
     }
 
+    public function pauseTransaction() {
+        $this->bTransaction = false;
+    }
+
+    public function resumeTransaction() {
+        $this->bTransaction = true;
+    }
+
     public function isTransaction() {
         return $this->bTransaction;
     }

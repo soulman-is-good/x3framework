@@ -12,7 +12,7 @@
 class X3_Html extends X3_Component {
 
     public static $requiredLabel = '<span class="required">*</span>';
-
+    
     public static function tag($tag,$attributes) {
         $attr="";
         $attr = self::compileAttrs($attributes);
@@ -42,6 +42,7 @@ class X3_Html extends X3_Component {
                 $attr = self::compileAttrs($attributes);
                 return "<$tag $attr />" . $content;
                 break;
+            case "button":
             case "option":
             case "select":
             case "textarea":

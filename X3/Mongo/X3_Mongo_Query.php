@@ -238,16 +238,16 @@ class X3_Mongo_Query extends X3_MySQL_Command implements X3_Interface_Query {
             if(empty($models)) {
                 return NULL;
             }
-            $module->table->accuire($models);
+            $module->table->acquire($models);
             return $module;
         }
         if(empty($models)) return array();
         foreach ($models as $i=>$model) {
             $tmp = new X3_Model($module->tableName,$module);
-            $tmp->accuire($model);
+            $tmp->acquire($model);
             $module->push($tmp);
             if($i==0)
-                $module->table->accuire($tmp);
+                $module->table->acquire($tmp);
         }
         return $module;
     }

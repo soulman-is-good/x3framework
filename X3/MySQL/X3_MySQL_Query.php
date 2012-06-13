@@ -180,8 +180,7 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
 
     public function delete() {
         $this->action = "DELETE";
-        $m = $this->class;
-        $class = $m;
+        $class = $this->class;
         foreach($class->_fields as $field){
             if(isset($field['ref'])){
                 if(isset($field['ref']['ondelete'])){
@@ -238,17 +237,19 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
             if(empty($models)) {
                 return NULL;
             }
-            $module->table->accuire($models);
+            $this->fire('beforeGet',array(&$models));
+            $module->getTable()->acquire($models);
+            $this->fire('afterGet',array(&$module));
             return $module;
         }
-        if(empty($models)) return array();
+        if(empty($models)) return $module;
         foreach ($models as $i=>$model) {
             $class = X3::app()->db->modelClass;
             $tmp = new $class($module->tableName,$module);
-            $tmp->accuire($model);
+            $this->fire('beforeGet',array(&$model));
+            $tmp->acquire($model);            
             $module->push($tmp);
-            if($i==0)
-                $module->table->accuire($tmp);
+            $this->fire('afterGet',array(&$module));
         }
         return $module;
     }
@@ -273,7 +274,7 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
         $this->select = 'COUNT(0) AS `cnt`';
         $sql = $this->buildSQL();
         $cnt = X3::app()->db->fetch($sql);
-        //TODO: ...FROM `table` USE INDEX(`index_set`) WHERE..., where `index_set` might be a set of fields by one index to accelerate
+        //TODO: ...FROM `table` USE INDEX(`index_set`) WHERE..., where `index_set` might be a set of fields by one index to ccelerate
         return $cnt['cnt'];
     }
 
@@ -287,29 +288,33 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
             $this->where('1');
             return $this;
         }
+        if($this->class != null && $this->class instanceof X3_Module_Table){
+            $table = $this->class->tableName;
+            $this->select("{$table}.*");
+        }
         $key = strtolower(key($params));
-        if(!in_array($key, array('join','condition','limit','order','offset'))){
+        if(!in_array($key, array('@join','@condition','@limit','@order','@offset'))){
             $tmp = $params;
             $params = array();
-            $params['condition'] = $tmp;
+            $params['@condition'] = $tmp;
             unset($tmp);
         }
         foreach($params as $key=>$array){
             $key = strtolower($key);
             switch($key){
-                case "join":
+                case "@join":
                     $this->join($this->formJoin($array));
                     break;
-                case "condition":
+                case "@condition":
                     $this->where($this->formCondition($array));
                     break;
-                case "limit":
+                case "@limit":
                     $this->limit($array);
                     break;
-                case "offset":
+                case "@offset":
                     $this->offset($array);
                     break;
-                case "order":
+                case "@order":
                     if(is_array($array))
                         $this->order('`'.implode('`, `',$array).'`');
                     else
@@ -330,11 +335,11 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
             if(is_array($v) && is_integer($k)){
                 if($nv!==false){
                     if(is_array($nv))
-                        $query .= "(" . $this->formQuery($v) . ") OR ";
+                        $query .= "(" . $this->formCondition($v) . ") OR ";
                     else
-                        $query .= "(" . $this->formQuery($v) . ") AND ";
+                        $query .= "(" . $this->formCondition($v) . ") AND ";
                 }else
-                    $query .= "(" . $this->formQuery($v) . ")";
+                    $query .= "(" . $this->formCondition($v) . ")";
             }else{
                 $oper = '=';
                 if(is_numeric($k)){
@@ -351,10 +356,10 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
                     if($v===NULL)$v='NULL';
                     $s = "`$k` IS $v";
                 }elseif($oper=='=')
-                    $s = "`$k` $oper $v";
+                    $s = "`$k` $oper ".(is_string($v)?"'$v'":$v);
                 else
                     $s = "`$k` $oper $v";
-                if($nv!=false)
+                if($nv!==false)
                     $query .= "$s AND ";
                 else
                     $query .= "$s";
@@ -364,6 +369,7 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
     }
     
     public function formJoin($params=array()){
+        if(is_string($params)) return $params;
         if(!is_array(current($params))) $paramz = array($params);
         else $paramz = $params;
         $query = "";

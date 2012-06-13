@@ -228,7 +228,7 @@ class X3_Module_View extends X3_Module implements Iterator, ArrayAccess {
     }
 
     public function offsetSet($offset, $value) {
-        $this->tables[$offset]->accuire($value);
+        $this->tables[$offset]->acquire($value);
     }
 
     public function offsetUnset($offset) {

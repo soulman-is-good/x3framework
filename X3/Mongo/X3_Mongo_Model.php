@@ -324,7 +324,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess{
         return $sql;
     }
 
-    public function accuire($array=array()) {
+    public function acquire($array=array()) {
         foreach($array as $key=>$value){
             if(isset($this[$key])){
                 $this[$key] = $value;

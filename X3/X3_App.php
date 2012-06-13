@@ -14,7 +14,7 @@ class X3_App extends X3_Component {
 
     const ERROR_OUTPUT_RADIUS = 5;
 
-    public static $user = null;
+    public $user = null;
     public $cs = null;
     private $request = null;
     private static $_components = array(
@@ -90,6 +90,7 @@ class X3_App extends X3_Component {
         $this->fire('onStartApp', array(&$module, &$action));
 
         //$module = (string) X3_String::create($module)->lcfirst();
+        $module = ucfirst($module);
         if (class_exists($module))
             $this->module = new $module($action);
         else {
@@ -114,7 +115,8 @@ class X3_App extends X3_Component {
     }
 
     public function run() {
-        $this->module->controller->run();
+        if($this->module->controller != null)
+            $this->module->controller->run();
         $this->fire('onEndApp');
     }
 
@@ -135,13 +137,13 @@ class X3_App extends X3_Component {
         }
     }
 
-    public function getPathFromAlias($path) {
-        if (strpos($path, ':') !== false) {
+    public function getPathFromAlias($path = "") {
+        if (strpos($path, ':') > 1) { //1 - is Windows style drive type (C:\)
             $dirs = explode(':', $path);
             foreach ($dirs as $i => $dir) {
                 if ($dir == "APPLICATION_DIR" || $dir == "@app")
                     $dirs[$i] = $this->APPLICATION_DIR;
-                elseif ($dir == "MODULES_DIR" || $dir == "@ctrls")
+                elseif ($dir == "MODULES_DIR" || $dir == "@modules")
                     $dirs[$i] = $this->APPLICATION_DIR . DIRECTORY_SEPARATOR . $this->MODULES_DIR;
                 elseif ($dir == "LAYOUTS_DIR" || $dir == "@layouts")
                     $dirs[$i] = $this->APPLICATION_DIR . DIRECTORY_SEPARATOR . $this->VIEWS_DIR . DIRECTORY_SEPARATOR . $this->LAYOUTS_DIR;
@@ -153,11 +155,16 @@ class X3_App extends X3_Component {
                     $dirs[$i] = $this->APPLICATION_DIR . DIRECTORY_SEPARATOR . $this->MODELS_DIR;
                 elseif ($dir == "")
                     unset($dirs[$i]);
+                
             }
-            $path = $this->basePath . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $dirs);
+            $path = implode(DIRECTORY_SEPARATOR, $dirs);
         }elseif ($path == "")
             return $this->basePath;
         return $path;
+    }
+    
+    public function hasComponent($name) {
+        return array_key_exists($name, self::$_components);
     }
 
     public function __call($name, $parameters) {

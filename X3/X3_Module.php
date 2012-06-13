@@ -40,7 +40,11 @@ class X3_Module extends X3_Component implements X3_Interface_Controller {
         $this->template = new X3_Renderer($this);
         return $this;
     }
-
+    
+    public function moduleTitle() {
+        return get_class($this);
+    }
+    
     public static function getInstance($class=null) {
         /*if(PHP_VERSION_ID<50300)
             throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию getInstance(\$class=__CLASS__)");

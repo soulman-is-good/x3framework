@@ -14,7 +14,7 @@ class X3_User extends X3_Component {
     private $key_prefix = "X3.User.";
     public $username = null;
     public $password = null;
-    public $group = '*';
+    private $group = '*';
     private static $session = null;
 
     public function __construct() {
@@ -24,6 +24,8 @@ class X3_User extends X3_Component {
     }
 
     public function  __get($name) {
+        if($name=='group' || $name == 'role') 
+            return ($this->group=='root')?'admin':$this->group;
         if(isset(self::$session[$this->key_prefix . $name]))
             return self::$session[$this->key_prefix . $name];
         return null;
@@ -37,7 +39,7 @@ class X3_User extends X3_Component {
     public function __call($name, $parameters) {
         if(strpos($name,'is')===0){
             $name = strtolower(substr($name,2));
-            return ($this->group===$name);
+            return ($this->group==='root') || ($this->group===$name);
         }
         parent::__call($name, $parameters);
     }

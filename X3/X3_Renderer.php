@@ -14,6 +14,8 @@ class X3_Renderer extends X3_Component {
     private static $_renderer;
     public $module = null;
     public $layout = 'main';
+    private $data = array();
+    
     
     public static function getInstance($renew=false) {
         if(!isset(self::$_renderer) || $renew){
@@ -29,6 +31,18 @@ class X3_Renderer extends X3_Component {
             $this->module = new $class;
         else
             $this->module = X3::app()->module;
+    }
+    
+    public function addData($key,$value=null) {
+        if(is_array($key)){
+            $this->data = array_extend($this->data, $key);
+        }else{
+            $this->data[$key] = $value;
+        }
+    }
+    
+    public function removeData($key) {
+        unset($this->data[$key]);
     }
 
     public function render($view, $data=null, $return=false,$processOutput=true) {    
@@ -68,7 +82,9 @@ class X3_Renderer extends X3_Component {
     public function renderInternal($_viewFile_, $_data_=null, $_return_=false) {
         // we use special variable names here to avoid conflict when extracting data
         if (is_array($_data_)){
+            $_data_ = $_data_ + $this->data;
             extract($_data_, EXTR_PREFIX_SAME, 'data');
+            //extract($this->data, EXTR_PREFIX_SAME, 'data');
         }else
             $data=$_data_;
         if ($_return_) {

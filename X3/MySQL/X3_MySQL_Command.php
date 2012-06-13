@@ -101,12 +101,13 @@ class X3_MySQL_Command extends X3_Command {
     }
 
     public function buildSQL(){
+        $tables = '';
         if(is_array($this->tables))
-            $this->tables = '`'.implode('`, `', $this->tables).'`';
+            $tables = '`'.implode('`, `', $this->tables).'`';
         else 
-            $this->tables = "`$this->tables`";
+            $tables = "`$this->tables`";
         foreach($this->as as $table=>$as){
-            $this->tables = str_replace("`$table`", "`$table` AS $as", $this->tables);
+            $tables = str_replace("`$table`", "`$table` AS $as", $this->tables);
         }
         if(strpos($this->action, '/')!==false){
             $actions = explode('/',$this->action);
@@ -130,10 +131,10 @@ class X3_MySQL_Command extends X3_Command {
                 $attributes = '';
                 if($what == 'TABLE')
                     $attributes = "($this->select)";
-                $sql = "CREATE $what $do " . $this->tables . " $attributes";
+                $sql = "CREATE $what $do " . $tables . " $attributes";
                 break;
             case "SELECT":
-                $sql = "SELECT " . $this->select . " FROM " . $this->tables . " " . $this->join .
+                $sql = "SELECT " . $this->select . " FROM " . $tables . " " . $this->join .
                     " WHERE " . $this->condition .
                     ((empty($this->group))?"":" GROUP BY ".$this->group).
                     ((empty($this->order))?"":" ORDER BY ".$this->order);
@@ -141,18 +142,19 @@ class X3_MySQL_Command extends X3_Command {
                     $sql .= " LIMIT " . (($this->offset>0)?"$this->offset,$this->limit":"$this->limit");
                 break;
             case "UPDATE":
-                $sql = "UPDATE $this->tables SET $this->values WHERE $this->condition";
+                $sql = "UPDATE $tables SET $this->values WHERE $this->condition";
                 break;
             case "INSERT":
-                $sql = "INSERT INTO $this->tables ($this->select) VALUES $this->values";
+                $sql = "INSERT INTO $tables ($this->select) VALUES $this->values";
                 break;
             case "DELETE":
                 if($this->condition=="")
                         throw new X3_Exception ('Need a condition to delete a row from a table. Use TRUNCATE action to empty table.', DB_ERROR);
-                $sql = "DELETE FROM $this->tables WHERE $this->condition";
+                $this->fire('onDelete',array($tables,$this->condition));
+                $sql = "DELETE FROM $tables WHERE $this->condition";
                 break;
             case "TRUNCATE":
-                $sql = "TRUNCATE $this->tables";
+                $sql = "TRUNCATE $tables";
                 break;
             case "ALTER":
                 if(is_array($actions)){
@@ -173,7 +175,7 @@ class X3_MySQL_Command extends X3_Command {
                     $this->select = "";
                     $this->dataType = "";
                 }
-                $sql = "ALTER $what " . $this->tables . " $do $this->select $this->dataType";
+                $sql = "ALTER $what " . $tables . " $do $this->select $this->dataType";
                 break;
             default:
                 break;

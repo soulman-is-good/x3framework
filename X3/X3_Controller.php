@@ -37,15 +37,17 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
     }
 
     public function run() {
-        $action = 'action' . ucfirst($this->action);
-        $this->fire('beforeAction',array(&$action));
-        if (($output = $this->handleCache()) !== false) {
-            $this->fire('onRender',array(&$output));
-            echo $output;
-            $this->fire('afterAction');
-        }else{            
-            $this->module->$action();
-            $this->fire('afterAction');
+        $this->fire('beforeAction',array(&$this->action));
+        if($this->action!=null){
+            $action = 'action' . ucfirst($this->action);
+            if (($output = $this->handleCache()) !== false) {
+                $this->fire('onRender',array(&$output));
+                echo $output;
+                $this->fire('afterAction');
+            }else{            
+                $this->module->$action();
+                $this->fire('afterAction');
+            }
         }
     }
 
