@@ -36,10 +36,10 @@ class X3_MySQLConnection extends X3_Component {
         else
             $this->config = $config;
 
-        if ($this->connect($config)) {
+        /*if ($this->connect($config)) {
             $this->updateSchema('tables');
         }else
-            throw new X3_Exception('Connection to database failed', 500);
+            throw new X3_Exception('Connection to database failed', 500);*/
     }
 
     public function connect($config = array()) {

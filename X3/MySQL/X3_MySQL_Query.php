@@ -62,6 +62,8 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
             }
             $this->select = implode(', ',$arr);
         }
+        if(is_array($query))
+            $query = implode (' ', $query);
         $this->join = $query;
         return $this;
     }

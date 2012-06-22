@@ -19,6 +19,7 @@ class X3_Thread extends X3_Component {
     private $content_type = "text/html"; //application/x-www-form-urlencoded
     private static $_instance = null;
     public $timeout = 60;
+    private $error = '';
 
     public function __construct($url, $params = array(), $method = "POST") {
         $this->url = $url;
@@ -34,7 +35,9 @@ class X3_Thread extends X3_Component {
         $url = $this->url;
         $params = $this->params;
         $parts = parse_url($url);
-        if (!$fp = fsockopen($parts['host'], isset($parts['port']) ? $parts['port'] : 80)) {
+        $err = '';
+        if (!$fp = fsockopen($parts['host'], isset($parts['port']) ? $parts['port'] : 80,$errno,$err)) {
+            $this->error = $err;
             return false;
         }
         if($check_only) return true;
@@ -73,8 +76,8 @@ class X3_Thread extends X3_Component {
         if (!is_array($hunks) || count($hunks) < 2) {
             return false;
         }
-        $header = $hunks[count($hunks) - 2];
-        $body = $hunks[count($hunks) - 1];
+        $header = array_shift($hunks);
+        $body = array_shift($hunks);
         $headers = explode("\n", $header);
         unset($hunks);
         unset($header);
@@ -101,11 +104,11 @@ class X3_Thread extends X3_Component {
             $tmp = ltrim($tmp);
             $pos = strpos($tmp, $eol);
             if ($pos === false) {
-                return false;
+                return $tmp;
             }
             $len = hexdec(substr($tmp, 0, $pos));
             if (!is_numeric($len) or $len < 0) {
-                return false;
+                return $tmp;
             }
             $str .= substr($tmp, ($pos + $add), $len);
             $tmp = substr($tmp, ($len + $pos + $add));
@@ -113,6 +116,10 @@ class X3_Thread extends X3_Component {
         } while (!empty($check));
         unset($tmp);
         return trim($str);
+    }
+    
+    public function getError() {
+        return $this->error;
     }
 
     public function getBody() {

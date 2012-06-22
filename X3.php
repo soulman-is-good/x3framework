@@ -24,10 +24,6 @@ defined('X3_ENABLE_ERROR_HANDLER') or define('X3_ENABLE_ERROR_HANDLER', TRUE);
 defined('IS_AJAX') or define('IS_AJAX', isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
 defined('IS_SAME_DOMAIN') or define('IS_SAME_DOMAIN', !isset($_SERVER['HTTP_REFERER']) || (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_REFERER'], $_SERVER['HTTP_HOST']) > 0));
 defined('IS_SAME_AJAX') or define('IS_SAME_AJAX', IS_AJAX && IS_SAME_DOMAIN);
-defined('IS_FLASH') or define('IS_FLASH', isset($_SERVER['HTTP_X_FLASH_VERSION']) || stripos($_SERVER['HTTP_USER_AGENT'],'Flash') > 0);
-defined('IS_IE') or define('IS_IE', isset($_SERVER['HTTP_USER_AGENT']) && (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE') !== false));
-    $version = explode('.', PHP_VERSION);
-defined('PHP_VER') or define('PHP_VER', ($version[0] * 10000 + $version[1] * 100 + $version[2]));
 /**
  * defining framework base path
  */
@@ -61,6 +57,9 @@ class X3 {
             ini_set('display_errors', 1);
             error_reporting(E_ALL & ~E_NOTICE);
         }
+        defined('IS_FLASH') or define('IS_FLASH', isset($_SERVER['HTTP_X_FLASH_VERSION']) || stripos($_SERVER['HTTP_USER_AGENT'],'Flash') > 0);
+        defined('IS_IE') or define('IS_IE', isset($_SERVER['HTTP_USER_AGENT']) && (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE') !== false));
+            $version = explode('.', PHP_VERSION);        
         //TODO: multiple load variants, not only JSON
         if (is_string($config) && is_file($config))
             $config = include($config); //taking configuration array
@@ -69,6 +68,16 @@ class X3 {
             throw new X3_Exception('Could not create application from a given config!');
 
         return new X3_App($config);
+    }
+    
+    public function console($config) {
+        if (is_string($config) && is_file($config))
+            $config = include($config); //taking configuration array
+        
+        if(!is_array($config))
+            throw new X3_Exception('Could not create application from a given config!');
+
+        return new X3_Console($config);        
     }
 
     /**
@@ -113,6 +122,8 @@ class X3 {
         }else
             $path = $className . '.php';
         $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->MODULES_DIR . DIRECTORY_SEPARATOR . $path;
+        if(!file_exists($file) && self::$_app instanceof X3_Console)
+            $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->COMMANDS_DIR . DIRECTORY_SEPARATOR . $path;
         if(!file_exists($file))
             $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->HELPERS_DIR . DIRECTORY_SEPARATOR . $className
                                                                                                     . DIRECTORY_SEPARATOR . $path;

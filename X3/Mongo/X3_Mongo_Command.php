@@ -9,7 +9,7 @@
  *
  * @author Soul_man
  */
-class X3_Mongo_Command extends X3_Command {
+class X3_Mongo_Command extends X3_Component {
 
     /**
      * @var string <p>Using for define what kind of function will be called.

@@ -220,7 +220,8 @@ class X3_String extends X3_Component {
     }
 
     public function lcfirst() {
-        $this->string[0] = strtolower($this->string[0]);
+        if(mb_strlen($this->string,X3::app()->encoding)>0)
+            $this->string[0] = strtolower($this->string[0]);
         return $this;
     }
 
