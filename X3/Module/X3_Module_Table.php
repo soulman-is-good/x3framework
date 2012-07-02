@@ -11,25 +11,8 @@
  */
 class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
     public $tableName = null;
-    /**
-     * has such stucture:
-     * Array
-     * (
-     *  [0] => Array
-     *   (
-     *       [Field] => id
-     *       [Type] => int(10) unsigned
-     *       [Null] => NO
-     *       [Key] => PRI
-     *       [Default] =>
-     *       [Extra] => auto_increment
-     *   ),
-     * ...etc.
-     * )
-     * @var array
-     */
     public $_fields = array();
-    public static $relations = array();
+    public $relations = array();
     private $tables = array();
     private $position = 0;
     private $table = null;    
@@ -223,7 +206,7 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
         }
         if(isset($this->_fields) && array_key_exists($name,$this->_fields))
             return $this->table[$name]=isset($this->_fields[$name]['default'])?$this->_fields[$name]['default']:"";
-        if(in_array($name, $this->table->getQueries())){
+        if($this->table!= null && in_array($name, $this->table->getQueries())){
             return $this->table->getQueries($name);
         }else
             return parent::__get($name);
@@ -242,7 +225,7 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
         if(strpos($name,'get') === 0){
             $_name = substr($name, 3);
             $class = get_called_class();        
-            if(isset($class::$relations[$_name]))
+            if(isset(X3_Module_Table::getInstance($class)->relations[$_name]))
                 return self::getInstance($class)->getRelation($_name,!empty($arguments));
         }
         throw new X3_Exception("Method you are requesting does not exists '$name'");

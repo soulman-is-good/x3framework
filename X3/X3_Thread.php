@@ -36,6 +36,8 @@ class X3_Thread extends X3_Component {
         $params = $this->params;
         $parts = parse_url($url);
         $err = '';
+        if(empty($parts['host']))
+            throw new X3_Exception('Host is not defined!');
         if (!$fp = fsockopen($parts['host'], isset($parts['port']) ? $parts['port'] : 80,$errno,$err)) {
             $this->error = $err;
             return false;

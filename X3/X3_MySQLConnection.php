@@ -14,7 +14,7 @@ class X3_MySQLConnection extends X3_Component {
 
     protected static $_db = NULL;
     protected static $_query = NULL;
-    protected $config = array(
+    protected static $config = array(
         'host' => 'localhost',
         'user' => 'root',
         'password' => '',
@@ -32,9 +32,9 @@ class X3_MySQLConnection extends X3_Component {
 
     public function __construct($config = null) {
         if ($config == null || !is_array($config))
-            $config = $this->config;
+            $config = self::$config;
         else
-            $this->config = $config;
+            self::$config = $config;
 
         /*if ($this->connect($config)) {
             $this->updateSchema('tables');
@@ -46,7 +46,7 @@ class X3_MySQLConnection extends X3_Component {
         if (self::$_db !== NULL)
             return false;
         if (empty($config))
-            $config = $this->config;
+            $config = self::$config;
         $server = (isset($config['host'])) ? $config['host'] : 'localhost';
         $username = (isset($config['user'])) ? $config['user'] : 'root';
         $password = (isset($config['password'])) ? $config['password'] : '';
@@ -61,8 +61,11 @@ class X3_MySQLConnection extends X3_Component {
         return true;
     }
 
-    public function validateSQL() {
-        //$this->sql = mysql_escape_string($this->sql); // strange it is not working
+    public function validateSQL($sql=null) {
+        $this->connect();
+        if($sql != null)
+            return mysql_real_escape_string($sql);
+        //$this->sql = mysql_real_escape_string($this->sql); // strange it is not working
         return $this->sql;
     }
 
@@ -207,7 +210,18 @@ class X3_MySQLConnection extends X3_Component {
             $msg = false;
         return $msg;
     }
-
+    
+    public function getUser() {
+        return self::$config['user'];
+    }
+    
+    public function getPassword() {
+        return self::$config['password'];
+    }
+    
+    public function getDatabase() {
+        return self::$config['database'];
+    }
 }
 
 ?>

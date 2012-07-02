@@ -26,6 +26,11 @@ class X3_String extends X3_Component {
     public static function create($string) {
         return new self($string);
     }
+    
+    public function set($string) {
+        $this->string = (string)$string;
+        return $this;
+    }
 
     private function dmword($string, $is_cyrillic = true) {
         static $codes = array(
@@ -282,6 +287,10 @@ class X3_String extends X3_Component {
         $url = trim($this->string);
         $l = strlen($protocol) + 3;
         return (mb_substr($url, 0, $l, X3::app()->encoding) == "$protocol://" || empty($url)) ? $url : ("$protocol://" . $url);
+    }
+    
+    public function strip_regexp() {
+        return stripslashes(trim($this->string,'/#~$^'));
     }
 
     public function __toString() {

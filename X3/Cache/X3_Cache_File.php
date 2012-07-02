@@ -16,6 +16,7 @@ class X3_Cache_File extends X3_Component {
     public $directory = '@app:cache';
     public $filename = '<controller>.<action>';
     public $expire = '+1 day';
+    public $rights = 0755;
 
     public function __construct($config=array()) {
         foreach($config as $var=>$val){
@@ -28,7 +29,7 @@ class X3_Cache_File extends X3_Component {
                 throw new X3_Exception("cache directory does not exist!",500);
             else{
                 //chown($this->directory, 'www-data');
-                chmod($this->directory,0644);
+                chmod($this->directory,$this->rights);
             }
         }
         $this->handleCache();

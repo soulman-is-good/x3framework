@@ -206,7 +206,7 @@ class X3_Form extends X3_Renderer {
     public function renderPartial($_fields = array(),$wrapper=null) {
         if(empty($_fields)){
             $fields = $this->module->fieldNames();
-        }elseif(key($_fields)==0){
+        }elseif(is_numeric(key($_fields))){
             $_fields = array_combine($_fields, array_fill(0, count($_fields), ''));
             $fields = array_intersect_key($this->module->fieldNames(), $_fields);
         }else{
@@ -241,7 +241,7 @@ class X3_Form extends X3_Renderer {
                     break;
                 case "text":
                     $tmp = $this->textarea($name);
-                    $this->addScript($name, $this->defaultScripts[$name]);
+                    $this->addScript($name, $this->defaultScripts[$type]);
                     break;
                 case "html":
                 case "content":

@@ -223,13 +223,17 @@ class X3_App extends X3_Component {
             'line' => $errorLine,
             'trace' => $exception->getTraceAsString(),
         );
-        if (!headers_sent())
-            header("HTTP/1.0 {$data['code']} " . get_class($exception));
-        if ($this->errorHandler != null) {
-            $this->errorHandler = new $this->errorHandler($this->errorAction);
-            $this->errorHandler->controller->run();
-        }else
-            $this->displayException($exception);
+        try{
+            if (!headers_sent())
+                header("HTTP/1.0 {$data['code']} " . get_class($exception));
+            if ($this->errorHandler != null) {
+                $this->errorHandler = new $this->errorHandler($this->errorAction);
+                $this->errorHandler->controller->run();
+            }else
+                $this->displayException($exception);
+        }catch(Exception $e){
+            echo "Error occured during handling exception!\n<br/>".$e->getMessage();
+        }        
     }
 
     /**
@@ -264,13 +268,17 @@ class X3_App extends X3_Component {
             'trace' => $traceString,
                 //'source' => $this->getSourceLines($event->file, $event->line),
         );
-        if (!headers_sent())
-            header("HTTP/1.0 500 PHP Error");
-        if ($this->errorHandler != null) {
-            $this->errorHandler = new $this->errorHandler($this->errorAction);
-            $this->errorHandler->run();
-        }else
-            $this->displayError($code, $message, $file, $line);
+        try{
+            if (!headers_sent())
+                header("HTTP/1.0 500 PHP Error");
+            if ($this->errorHandler != null) {
+                $this->errorHandler = new $this->errorHandler($this->errorAction);
+                $this->errorHandler->run();
+            }else
+                $this->displayError($code, $message, $file, $line);
+        }catch(Exception $e){
+            echo "Error occured during handling an error!\n<br/>".$e->getMessage();
+        }
     }
 
     /**
@@ -371,7 +379,7 @@ class X3_App extends X3_Component {
      */
     protected function initSystemHandlers() {
         $ehandle = explode('/', $this->errorController);
-        $econtroller = (string) X3_String::create($ehandle[0])->lcfirst();
+        $econtroller = ucfirst($ehandle[0]);
         if (isset($ehandle[1]))
             $this->errorAction = (string) X3_String::create($ehandle[1])->lcfirst();
         $c_path = $this->basePath . DIRECTORY_SEPARATOR .
