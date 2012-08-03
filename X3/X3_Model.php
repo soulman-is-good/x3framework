@@ -21,6 +21,20 @@ class X3_Model extends X3_Component implements ArrayAccess {
         $this->model = new $class($tableName, $module);
         return $this->model;
     }
+    
+    public static function create($module) {
+        $db = X3::app()->db;
+        $tableName = "";
+        if($module instanceof X3_Module_Table){
+            $tableName = $module->tableName;
+        }elseif(is_string($module)){
+            $tableName = $module;
+            $module = null;
+        }else
+            throw new X3_Exception("Can't create model with no table",500);
+        $class = $db->modelClass;
+        return new $class($tableName, $module);
+    }
 
     public function __get($name) {
         if (property_exists($this->class, $name))

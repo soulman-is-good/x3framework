@@ -62,22 +62,7 @@ class X3_Console extends X3_Component {
             if (property_exists($this, $name))
                 $this->$name = $value;
         }
-        $argv = array();
-        if(isset($_SERVER['argv'])){
-            $argv = $_SERVER['argv'];
-            array_shift($argv);
-            $module = array_shift($argv);
-            $action = array_shift($argv);
-            if($module == '') 
-                $module = 'site';
-            if($action == '') 
-                $action = 'index';
-            
-            foreach($argv as $arg){
-                $a = explode('=', $arg);
-                $this->global[$a[0]] = (isset($a[1])?trim($a[1],"\"'"):true);
-            }
-        }
+        list($module,$action) = $this->initArgs();
         //mb_internal_encoding($this->encoding);
         setlocale(LC_ALL, "$this->locale." . str_replace('-', '', $this->encoding));
         setlocale(LC_NUMERIC, 'C');
@@ -115,10 +100,68 @@ class X3_Console extends X3_Component {
         }
         return $this;
     }
+    
+    public function exec($command) {
+        if(is_string($command)){
+            $command = explode(" ", $string);
+            array_unshift($command, "-");
+        }
+        list($module,$action) = $this->initArgs($command);
+        $module = ucfirst($module);
+        $class = $module."Command";
+        if (class_exists($class)){
+            $module = new $class($action);
+            $module->init();
+        }else {
+            $c_path = $this->basePath . DIRECTORY_SEPARATOR .
+                    $this->APPLICATION_DIR . DIRECTORY_SEPARATOR .
+                    $this->COMMANDS_DIR . DIRECTORY_SEPARATOR .
+                    $module . '.php'; //Path to the module
+            if (!is_file($c_path))
+                $c_path = $this->basePath . DIRECTORY_SEPARATOR .
+                        $this->APPLICATION_DIR . DIRECTORY_SEPARATOR .
+                        $this->COMMANDS_DIR . DIRECTORY_SEPARATOR .
+                        $module . DIRECTORY_SEPARATOR . $module . '.php'; //Path to the module
+            if (!is_file($c_path))
+                if (X3_DEBUG)
+                    throw new X3_Exception('No command "' . $module . '" found!', 500);
+                else
+                    throw new X3_404();
+            require_once($c_path);
+            $module = new $class($action);
+            $module->init();
+        }
+        $module->run();
+        return $module;
+    }
 
     public function run() {
         $this->module->run();
         $this->fire('onEndApp');
+    }
+    
+    public function initArgs($argv = null) {
+        $argv = array();
+        if($argv == null && isset($_SERVER['argv'])){
+            $argv = $_SERVER['argv'];
+        }
+        $module = 'site';
+        $action = 'index';
+        if(isset($argv)){
+            array_shift($argv);
+            $module = array_shift($argv);
+            $action = array_shift($argv);
+            if($module == '') 
+                $module = 'site';
+            if($action == '') 
+                $action = 'index';
+            
+            foreach($argv as $arg){
+                $a = explode('=', $arg);
+                $this->global[$a[0]] = (isset($a[1])?trim($a[1],"\"'"):true);
+            }
+        }
+        return array($module,$action);
     }
 
     private function initComponents($config) {

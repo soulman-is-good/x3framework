@@ -125,7 +125,7 @@ class X3_MySQLConnection extends X3_Component {
         if ($param2 == null && empty(self::$_schema[$param])){
             $this->updateSchema($param);
             return self::$_schema[$param];
-        }elseif(!empty(self::$_schema[$param])){
+        }elseif($param2==null && !empty(self::$_schema[$param])){
             return self::$_schema[$param];
         }elseif($param2!=null && empty(self::$_schema[$param][$param2])){
             $this->updateSchema($param,$param2);            
@@ -180,8 +180,11 @@ class X3_MySQLConnection extends X3_Component {
     public function commit() {
         $this->connect();
         $this->bTransaction = false;
-        if (!mysql_query("START TRANSACTION", self::$_db))
+        if (!mysql_query("START TRANSACTION", self::$_db)){
+            if (X3_DEBUG)
+                X3::log('Error in transaction: '.$this->getErrors(), 'db');
             return false;
+        }
         try {
             if (X3_DEBUG)
                 X3::log('Starting transaction', 'db');

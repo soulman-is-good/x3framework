@@ -18,17 +18,43 @@
 class X3_String extends X3_Component {
 
     private $string = '';
+    private $encoding = 'UTF-8';
+    private $length = false;
 
-    public function __construct($string) {
+    public function __construct($string,$encoding = null) {
         $this->string = (string) $string;
+        if($encoding!=null)
+            $this->encoding = $encoding;
+        elseif(isset(X3::app()->encoding)){
+            $this->encoding = X3::app()->encoding;
+        }
     }
 
-    public static function create($string) {
-        return new self($string);
+    public static function create($string,$encoding = null) {
+        return new self($string,$encoding);
     }
     
+    /**
+     * 
+     * @param string $string the whole string to cut
+     * @param integer $count how many symbols to cut
+     * @param mixed $find array or string - symbol(s) to orientate for cutting. the order in array means priority
+     * @param string $endsWith cutted string will end with this symbol
+     * @param bool $force force cutting if there no symbols found
+     * @return X3_String returns new instance of cutted string
+     */    
+    public static function cut($string,$count = 255, $find=array('.',';',"\n",' ') ,$endsWith = '&hellip;', $force = false) {
+        return self::create($string)->carefullCut($count, $find ,$endsWith, $force);
+    }
+    
+    public function getLength() {
+        if($this->length===false)
+            $this->length = mb_strlen($this->string,$this->encoding);
+        return $this->length;
+    }
+
     public function set($string) {
-        $this->string = (string)$string;
+        $this->string = (string) $string;
         return $this;
     }
 
@@ -225,12 +251,12 @@ class X3_String extends X3_Component {
     }
 
     public function lcfirst() {
-        if(mb_strlen($this->string,X3::app()->encoding)>0)
+        if ($this->getLength() > 0)
             $this->string[0] = strtolower($this->string[0]);
         return $this;
     }
 
-    public function translit() {
+    public function translit($backward=false,$stripchars=array()) {
         static $ru = array(
     'А', 'а', 'Б', 'б', 'В', 'в', 'Г', 'г', 'Д', 'д', 'Е', 'е',
     'Ё', 'ё', 'Ж', 'ж', 'З', 'з', 'И', 'и', 'Й', 'й', 'К', 'к',
@@ -247,7 +273,15 @@ class X3_String extends X3_Component {
     'Ch', 'ch', 'Sh', 'sh', 'Sch', 'sch', '\'', '\'', 'Y', 'y', '\'', '\'',
     'E', 'e', 'Ju', 'ju', 'Ja', 'ja'
         );
-        $string = str_replace($ru, $en, $this->string);
+        if(is_string($stripchars))
+            $stripchars = array($stripchars);
+        if($backward)
+            $string = str_replace($en, $ru, $this->string);
+        else
+            $string = str_replace($ru, $en, $this->string);
+        foreach ($stripchars as $char){
+            $string = str_replace($char, '', $string);
+        }
         return str_replace(' ', '_', $string);
     }
 
@@ -260,9 +294,9 @@ class X3_String extends X3_Component {
     public function currency($with_cent = false, $round = 2) {
         $price = str_replace(',', '.', $this->string);
         $whole_price = floor($price);
-        $l = mb_strlen($whole_price, X3::app()->encoding);
+        $l = mb_strlen($whole_price, $this->encoding);
         for ($i = 0; $i < $l; $i++)
-            $price_array[] = mb_substr($whole_price, $i, 1, X3::app()->encoding);
+            $price_array[] = mb_substr($whole_price, $i, 1, $this->encoding);
 
         $new_price = '';
         for ($i = ceil($l / 3) - 1; $i >= 0; $i--) {
@@ -285,12 +319,65 @@ class X3_String extends X3_Component {
      */
     function check_protocol($protocol = 'http') {
         $url = trim($this->string);
-        $l = strlen($protocol) + 3;
-        return (mb_substr($url, 0, $l, X3::app()->encoding) == "$protocol://" || empty($url)) ? $url : ("$protocol://" . $url);
+        $l = mb_strlen($protocol,$this->encoding) + 3;
+        return (mb_substr($url, 0, $l, $this->encoding) == "$protocol://" || empty($url)) ? $url : ("$protocol://" . $url);
+    }
+
+    public function strip_regexp() {
+        return stripslashes(trim($this->string, '/#~$^'));
+    }
+
+    /**
+     * 
+     * @param type $needle
+     * @param integer $type 0 - strpos 1 - strrpos 2 - stripos 3 - strripos
+     * @return mixed first found needle position false otherwise
+     */
+    public function strpos($needle,$type=0) {
+        $haystack = $this->string;
+        if (!is_array($needle))
+            $needle = array($needle);
+        switch ($type){
+            case 0:
+                $func = "mb_strpos";
+                break;
+            case 1:
+                $func = "mb_strrpos";
+                break;
+            case 2:
+                $func = "mb_stripos";
+                break;
+            case 3:
+                $func = "mb_strripos";
+                break;
+            default:
+                $func = "mb_strpos";
+        }
+        foreach ($needle as $what) {
+            if (($pos = call_user_func_array($func, array($haystack, $what,null,$this->encoding))) !== false)
+                return $pos;
+        }
+        return false;
     }
     
-    public function strip_regexp() {
-        return stripslashes(trim($this->string,'/#~$^'));
+    
+    /**
+     * 
+     * @param integer $count how many symbols to cut
+     * @param mixed $find array or string - symbol(s) to orientate for cutting. the order in array means priority
+     * @param string $endsWith cutted string will end with this symbol
+     * @param bool $force force cutting if there no symbols found
+     * @return X3_String returns new instance of cutted string
+     */
+    public function carefullCut($count = 255, $find=array('.',';',"\n",' ') ,$endsWith = '&hellip;', $force = false) {
+        $text = self::create(mb_substr($this->string,0,$count,$this->encoding));
+        
+        if (($this->getLength() <= $count) || (!$force && $text->strpos($find,1) === false))
+            return $text;
+        else {
+            $text->set(mb_substr($text->string, 0, $text->strpos($find,1),$this->encoding));
+        }
+        return $text->set($text->string . $endsWith);
     }
 
     public function __toString() {

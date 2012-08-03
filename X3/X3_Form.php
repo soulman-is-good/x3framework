@@ -20,15 +20,12 @@ class X3_Form extends X3_Renderer {
     
     private $scripts = array();
     
-    public $defaultScripts = array(
-        'text'=>"<script>
-                    if(typeof CKEDITOR.instances['%Id'] != 'undefined')
-                        delete(CKEDITOR.instances['%Id']);
-                    CKEDITOR.replace( '%Id' );
-                </script>"
-    );
+    public $defaultScripts = array();
     
-    public $defaultWrapper = "<tr><td>%label</td><td>%field</td><td>%required</td></tr>";
+    public $defaultWrapper = array(
+        'row'=>"<tr><td>%label</td><td>%field</td><td>%required</td></tr>",
+        'wraper'=>"<table>%rows<tr><td colspan=\"3\">%submit</td></tr></table>"
+    );
 
     public function __construct($class = null,$attributes = array()) {
         $this->attributes = array_extend($this->attributes,$attributes);
@@ -114,9 +111,14 @@ class X3_Form extends X3_Renderer {
             $attributes['id'] = !isset($attributes['id'])?get_class($this->module) . '_' . $text:$attributes['id'];
             $attributes['value'] = $this->module->$text;
             if(!isset($attributes['%content'])) $attributes['%content'] = "";
-            $attributes['%content'] .= X3_Html::form_tag('input', array('type'=>'hidden','name'=>get_class($this->module) . '[' . $value . '_source]','value'=>$this->module->$text)) . 
-            "<br />" . 
-            X3_Html::open_tag('a', array('href'=>'/uploads/'.  get_class($this->module) .'/'.$this->module->$text,'target'=>'_blank')) . $this->module->$text . X3_Html::close_tag('a');
+            $attributes['%content'] .= X3_Html::form_tag('input', array('type'=>'hidden','name'=>get_class($this->module) . '[' . $value . '_source]','value'=>$this->module->$text));
+            $file = 'uploads/'.  get_class($this->module) .'/'.$this->module->$text;
+            if(is_file($file)){
+                $attributes['%content'] .= "<br />" . X3_Html::open_tag('a', array('href'=>'/'.$file,'target'=>'_blank')) . $this->module->$text . X3_Html::close_tag('a');
+                if((isset($this->module->_fields[$text]['default']) && $this->module->_fields[$text]['default']=='NULL') || (in_array('null', $this->module->_fields[$text]))){
+                    $attributes['%content'] .= '<br/>'.X3_Html::form_tag('input', array('type'=>'checkbox','name'=>get_class($this->module) . '[' . $value . '_delete]')).'Удалить?';
+                }
+            }
         }
         else
             $attributes['name'] = $text;
@@ -162,7 +164,11 @@ class X3_Form extends X3_Renderer {
                 //get default field for value if defined
                 if(isset($this->module->_fields[$options]['ref']['default']))
                     $value = $this->module->_fields[$options]['ref']['default'];
-                $class = X3_Module_Table::getInstance($class)->table->select("`$id`, `$value`")->where($where)->asObject();
+                $query = array();
+                if(isset($this->module->_fields[$options]['ref']['query']))
+                    $query = $this->module->_fields[$options]['ref']['query'];
+                
+                $class = X3_Module_Table::get($query,0,$class);
                 //make it possible to define high level if ther is one
                 if(isset($this->module->_fields[$options]['default']) && ($this->module->_fields[$options]['default'] == 'NULL'||is_null($this->module->_fields[$options]['default'])) 
                         ||
@@ -188,7 +194,7 @@ class X3_Form extends X3_Renderer {
         }
     }
     
-    public function render() {
+    public function render($withLangs = true) {
         if($this->module == null) return '';
         $_html = '';
         if(!$this->module->table->getIsNewRecord()){
@@ -196,10 +202,28 @@ class X3_Form extends X3_Renderer {
         }
         //TODO: make render function that renders whole form
         $fields = $this->module->fieldNames();
-        $_html .= "<table>";
-        $_html .= $this->renderPartial();
-        $_html .= '<tr><td colspan="3">'.X3_Html::form_tag('button',array('%content'=>'Сохранить','type'=>'submit')).'</td></tr>';
-        $_html.="</table>";
+        if(isset(X3::app()->languages)){
+            $langs = X3::app()->languages;
+            foreach ($fields as $name => $value) {
+                if(in_array('language',$this->module->_fields[$name])){
+                    foreach($langs as $lang){
+                        $attr = $name . "_" . $lang;
+                        $val = $value . " " . strtoupper($lang);
+                        array_insert(array($attr=>$val), $fields,$name);
+                    }
+                }
+            }
+        }
+        if(is_array($this->defaultWrapper)){
+            $wrapper = $this->defaultWrapper['wraper'];
+            $_html .= str_replace('%rows', $this->renderPartial($fields), $wrapper);
+            $_html = str_replace('%submit', X3_Html::form_tag('button',array('%content'=>'Сохранить','type'=>'submit')), $_html);
+        }else{
+            $_html .= "<table>";
+            $_html .= $this->renderPartial($fields);
+            $_html .= '<tr><td colspan="3">'.X3_Html::form_tag('button',array('%content'=>'Сохранить','type'=>'submit')).'</td></tr>';
+            $_html.="</table>";
+        }
         return $_html;
     }
     
@@ -212,8 +236,12 @@ class X3_Form extends X3_Renderer {
         }else{
             $fields = $_fields;
         }
-        if($wrapper==null)
-            $wrapper = $this->defaultWrapper;
+        if($wrapper==null){
+            if(is_array($this->defaultWrapper))
+                $wrapper = $this->defaultWrapper['row'];
+            else
+                $wrapper = $this->defaultWrapper;
+        }
         $class = get_class($this->module);
         $_html = '';
         foreach ($fields as $name => $field){
@@ -222,8 +250,23 @@ class X3_Form extends X3_Renderer {
                 continue;
             }
             $flds = $this->module->_fields[$name];
-            $type = preg_replace("/\[.+?\]/", "", $flds[0]);
+            $matches = array();
+            $type = $flds[0];
+            if (preg_match('/\[(.+?)\]/', $type, $matches) > 0) {
+                $rep = array_shift($matches);
+                $arg = array_shift($matches);
+                $type = str_replace($rep, "", $type);
+            }
             switch ($type){
+                case "enum":
+                    $arg = explode(',',$arg);
+                    $options = array();
+                    foreach ($arg as &$a) {
+                        $a = trim($a,'"\'');
+                        $options[$a] = $a;
+                    }
+                    $tmp = $this->select($options,array('id'=>"{$class}_{$name}",'name'=>"{$class}[{$name}]",'%select'=>$this->module->$name));
+                    break;
                 case "integer":
                 case "string":
                     if(isset($flds['ref']))
@@ -233,6 +276,15 @@ class X3_Form extends X3_Renderer {
                     else
                         $tmp = $this->input($name);
                     break;
+                case "datetime":
+                        $val = $this->module->$name;
+                        $format = 'd.m.Y';
+                        if(isset($flds['format']))
+                            $format = $flds['format'];
+                        if($val == 0)
+                            $val = time();
+                        $tmp = X3_Html::form_tag('input',array('type'=>'text','id'=>"{$class}_$name",'name'=>"{$class}[$name]",'value'=>date($format,$val)));
+                    break;
                 case "file":
                     $tmp = $this->file($name);
                     break;
@@ -241,7 +293,6 @@ class X3_Form extends X3_Renderer {
                     break;
                 case "text":
                     $tmp = $this->textarea($name);
-                    $this->addScript($name, $this->defaultScripts[$type]);
                     break;
                 case "html":
                 case "content":
@@ -250,6 +301,8 @@ class X3_Form extends X3_Renderer {
                 default:
                     $tmp = $this->input($name);
             }
+            if(isset($this->defaultScripts[$type]))
+                $this->addScript($name, $this->defaultScripts[$type]);
             $tmp .= $this->initScript($name);
             $required = $this->requiredLabel;
             if((isset($flds['default']) && ($flds['default']=='NULL' || is_null($flds['default']))) || in_array('null', $flds));
@@ -273,6 +326,7 @@ class X3_Form extends X3_Renderer {
         $id = "$name";
         if($this->module != null)
             $id = get_class($this->module) . "_$name";
+        $script = str_replace("%Locale", X3::app()->locale, $script);
         $this->scripts[$name] = str_replace("%Id", $id, $script);
     }
 

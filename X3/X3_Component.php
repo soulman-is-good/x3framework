@@ -51,17 +51,9 @@ class X3_Component {
         else if (strncasecmp($name, 'on', 2) === 0 && method_exists($this, $name)) {
             // duplicating getEventHandlers() here for performance
             $name = strtolower($name);
-            if (!isset($this->_e[$name]))
-                $this->_e[$name] = null;
-            return $this->_e[$name];
-        }
-        else if (isset($this->_m[$name]))
-            return $this->_m[$name];
-        else if (is_array($this->_m)) {
-            foreach ($this->_m as $object) {
-                if ($object->getEnabled() && (property_exists($object, $name) || $object->canGetProperty($name)))
-                    return $object->$name;
-            }
+            if (!isset(self::$_e[$name]))
+                self::$_e[$name] = null;
+            return self::$_e[$name];
         }
         throw new X3_Exception('Property "' . get_class($this) . '.' . $name . '" is not defined.');
     }

@@ -42,7 +42,6 @@ class X3_Thread extends X3_Component {
             $this->error = $err;
             return false;
         }
-        if($check_only) return true;
         $result = "";
         $data = http_build_query($params, '', '&');
         if (isset($parts['user']))
@@ -56,6 +55,7 @@ class X3_Thread extends X3_Component {
         fwrite($fp, "Connection: Close\r\n\r\n");
         if($this->method == "POST")
             fwrite($fp, $data);
+        if($check_only) return $fp;
         while(!feof($fp))
             $result .= fread($fp, 1024);
         fclose($fp);

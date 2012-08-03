@@ -46,9 +46,9 @@ class X3_Module extends X3_Component implements X3_Interface_Controller {
     }
     
     public static function getInstance($class=null) {
-        /*if(PHP_VERSION_ID<50300)
+        if($class == null && PHP_VERSION_ID<50300)
             throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию getInstance(\$class=__CLASS__)");
-        else*/
+        else
         if($class==null)
             $class = get_called_class();
         if(!isset(self::$_modules[$class])){
@@ -58,11 +58,13 @@ class X3_Module extends X3_Component implements X3_Interface_Controller {
     }
 
     public static function newInstance($class=null) {
-        /*if(PHP_VERSION_ID<50300)
+        if($class==null && PHP_VERSION_ID<50300)
             throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию newInstance(\$class=__CLASS__)");
-        else*/
+        else
         if($class==null)
             $class = get_called_class();
+        if(is_object($class))
+            return $class;
         return self::$_modules[$class] = new $class();
     }
     /**

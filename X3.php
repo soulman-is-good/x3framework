@@ -121,6 +121,7 @@ class X3 {
                 $path = str_replace ('_', DIRECTORY_SEPARATOR, $className) . '.php';
         }else
             $path = $className . '.php';
+        //echo "$className<br/>";
         $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->MODULES_DIR . DIRECTORY_SEPARATOR . $path;
         if(!file_exists($file) && self::$_app instanceof X3_Console)
             $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->COMMANDS_DIR . DIRECTORY_SEPARATOR . $path;
@@ -139,7 +140,7 @@ class X3 {
      *
      * @param string $path path or alias to the file to be imported
      */
-    public static function import($path,$noautoload=false) {
+    public static function import($path,$noautoload=false,$once=true) {
         $path = self::$_app->getPathFromAlias($path);
         if(is_file($path)) {
             /*if(($i=  strrpos($path, DIRECTORY_SEPARATOR))!==false){
@@ -147,7 +148,10 @@ class X3 {
                 set_include_path ($dir);
             }*/
             if($noautoload) spl_autoload_unregister(array('X3', 'autoload'));
-            require $path;
+            if($once)
+                return require_once $path;
+            else
+                return require $path;
             if($noautoload) spl_autoload_register(array('X3', 'autoload'));
         }
         else throw new X3_Exception ("Wrong import path. File '$path' does not exist!", X3::FILE_IO_ERROR);
@@ -183,6 +187,7 @@ class X3 {
             foreach ($substitude as $key => $value) {
                 $message = str_replace("{".$key."}", $value, $message);
             }
+        X3::app()->fire('onTranslate',array(&$message));
         return $message;
     }
 
@@ -306,3 +311,10 @@ if (!function_exists('is_a')):
         return $object instanceof $class;
     }
 endif;
+if(!function_exists('mb_strlen')){
+    function mb_strlen($string,$encoding='UTF-8'){
+        if($encoding == 'UTF-8')
+            return preg_match_all("/.{1}/us",$string,$dummy);
+        return strlen($string);
+    }
+}

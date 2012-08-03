@@ -33,14 +33,15 @@ class X3_Cache_File extends X3_Component {
             }
         }
         $this->handleCache();
-        $this->addTrigger('onRender');
+        if(!isset($config['noTriggers']))
+            $this->addTrigger('onRender');
     }
 
     public function handleCache() {
         //TODO: Check all cached files for expiration. Example - direct access /sitemap.xml
     }
 
-    public function readCache($controller,$action) {
+    public function readCache($controller=null,$action=null,$withHeaders=true) {
         $filename = str_replace('<controller>', $controller, $this->filename);
         $filename = str_replace('<action>', $action, $filename);
         $this->file = $file = $this->directory . DIRECTORY_SEPARATOR . $filename;
@@ -62,10 +63,28 @@ class X3_Cache_File extends X3_Component {
             return false;
 
         }
-        if(!IS_AJAX)
-            header('HTTP/1.1 304 Not Modified');
-        header('Expires: ' . gmdate('D, d M Y H:i:s', $header) . ' GMT');
+        if($withHeaders){
+            if(!IS_AJAX)
+                header('HTTP/1.1 304 Not Modified');
+            header('Expires: ' . gmdate('D, d M Y H:i:s', $header) . ' GMT');
+        }
         return $buf;
+    }
+    
+    public function writeCache($output) {
+        if(is_file($this->file)){
+            @unlink($this->file);
+        }
+        if(false === ($f = fopen($this->file,'w'))){
+            X3::log("Can't write cache file '$this->file'");
+            return false;
+        }
+        if(flock($f, LOCK_EX)){
+            //fwrite($f, $expire,16);
+            fwrite($f, $output);
+            flock($f, LOCK_UN);
+        }
+        fclose($f);        
     }
 
     public function flush($file=null) {
@@ -76,19 +95,7 @@ class X3_Cache_File extends X3_Component {
 
     public function onRender(&$output) {
         if($this->cache){
-            if(is_file($this->file)){
-                @unlink($this->file);
-            }
-            if(false === ($f = fopen($this->file,'w'))){
-                X3::log("Can't write cache file '$this->file'");
-                return false;
-            }
-            if(flock($f, LOCK_EX)){
-                //fwrite($f, $expire,16);
-                fwrite($f, $output);
-                flock($f, LOCK_UN);
-            }
-            fclose($f);
+            $this->writeCache($output);
         }
     }
 

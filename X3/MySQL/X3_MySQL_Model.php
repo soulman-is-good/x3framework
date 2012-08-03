@@ -91,7 +91,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
             $db = X3::app()->db;
             $db->query($sql);
             if (($msg = $db->getErrors()) !== false) {
-                throw new X3_Exception($msg, 500);
+                throw new X3_Exception($msg." ".$sql, 500);
             }
         }
         return true;
@@ -124,13 +124,15 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
             do {
                 $k['Field'] = trim($k['Field'], '`');
                 if ($k['Field'] == $name) {
-                    $diff = array_diff_assoc($dataType, $k);
+                    $diff = array_diff_assoc($dataType,$k);
+                    //if($name=='category_id'){var_dump($diff);die;}
                     if (!empty($diff))
                         $change = true;
                     $found = true;
                     $modifyField = $k['Field'];
-                    if (isset($diff['Key']) && $diff['Key'] != '') {
+                    if (isset($diff['Key'])) {
                         if ($k['Key'] == 'MUL' || $k['Key'] == 'UNI') {
+                            //TODO: Other keys?
                             $Query = new X3_Query($this->tableName, $this->module);
                             $Query->action = 'ALTER/TABLE/DROP';
                             $Query->select = "INDEX `{$name}`";
@@ -265,7 +267,14 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
             case 'boolean':
                 $dataType = "tinyint(1)"; //For other MySQL's
                 break;
-
+            case 'enum':
+                //we must handle error if there is no enum argumnts defined
+                if(!$arg){
+                    throw new X3_Exception("Enum must take arguments like `enum['apple','banana','pineapple']` on ".get_class($this));
+                }
+                $arg = str_replace('"',"'",$arg);
+                $dataType = "enum($arg)";
+                break;
             default:
                 $dataType = "int(11)";
                 break;
@@ -274,7 +283,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
         //TODO: UNIQUE AND INDEX indexes
 
         $result['Null'] = "NO";
-        if (in_array('null', $field) || (isset($field['default']) && $field['default'] == 'NULL')) {
+        if (in_array('null', $field) || (isset($field['default']) && ($field['default'] == 'NULL' || is_null($field['default'])))) {
             unset($field['default']);
             $result['Null'] = "YES";
         }
@@ -387,6 +396,11 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
                 $arg = 11;
             if ($dataType == 'email')
                 $arg = 255;
+            if($arg && $dataType == 'enum'){
+                $arg = explode(',',$arg);
+                foreach($arg as &$a)
+                    $a = trim($a,'"\'');
+            }else
             if ($arg && $dataType != 'float') {
                 if (strpos($arg, '|') !== false) {
                     $arg = explode('|', $arg);
@@ -447,6 +461,11 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
                     if ($default != 'NULL' && preg_match('/(^[-0-9]+?[.][0-9]+$)|(^[0-9]+$)/', $this[$name]) == 0)
                         $this->addError($name, (isset($field['errors']['float'])) ? $field['errors']['float'] : X3::translate('Поле {attribute} должно быть вещественным числом', array('attribute' => $this->module->fieldName($name))));
                     break;
+                case 'enum':
+                    if((is_numeric($this[$name]) && !isset($arg[$this[$name]])) || !in_array($this[$name],$arg)){
+                        $this->addError($name, (isset($field['errors']['float'])) ? $field['errors']['enum'] : X3::translate('Полю {attribute} задан не верный параметр', array('attribute' => $this->module->fieldName($name))));
+                    }
+                    break;
                 default:
                     break;
             }
@@ -469,23 +488,31 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
     }
 
     public function save() {
-        $this->module->beforeSave();
         if (!$this->validate()) {
             return false;
         }
+        $this->module->beforeSave();
+        $attributes = array();
+        foreach($this->attributes as $attr=>$v)
+            if(!in_array('unused',$this->module->_fields[$attr]))
+                $attributes[$attr] = $v;
         if (!$this->_new) {
             //TODO: Can't UPDATE without primary key if no WHERE;
             //TODO: Optimization if module->tables != empty -> onEnd -> query all updates : else realtime
-            $rez = $this->update($this->attributes)->where("`$this->_PK`='" . $this->attributes[$this->_PK] . "'")->execute();
+            $rez = $this->update($attributes)->where("`$this->_PK`='" . $this->attributes[$this->_PK] . "'")->execute();
             $this->module->afterSave();
             return $rez;
         } else {
-            $rez = $this->insert($this->attributes)->execute();
-            $this->attributes[$this->_PK] = mysql_insert_id();            
+            $rez = $this->insert($attributes)->execute();
+            $this->attributes[$this->_PK] = $this->getLastInsertedId();
             $this->module->afterSave(true);
             $this->_new = false;
             return $rez;
         }
+    }
+    
+    public function getLastInsertedId() {
+        return mysql_insert_id();
     }
 
     public function getErrors() {

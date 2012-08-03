@@ -18,6 +18,11 @@ class X3_Router extends X3_Component {
             if(property_exists($this, $var))
                 $this->$var = $val;
         }
+        if(is_string($this->routes)){
+            $path = realpath(X3::app()->getPathFromAlias($this->routes));
+            if($path)
+                $this->routes = include $path;
+        }
         $this->addTrigger('onStartApp');
         $this->addTrigger('beforeAction');
     }

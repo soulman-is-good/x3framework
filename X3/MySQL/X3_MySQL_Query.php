@@ -117,10 +117,10 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
                     }else
                         switch (strtoupper($fld['ref']['onupdate'])) {
                             case "CASCADE":
-                                die('ДОДЕЛАЙ MySQL QUERY!!!');
+                                die('В разработке...');
                                 break;
                             case "RESTRICT":
-                                die('ДОДЕЛАЙ MySQL QUERY!!!');
+                                die('В разрвботке...');
                                 break;
                             case "SET DEFAULT":
                                 //TODO: check if related table.field have default
@@ -169,8 +169,10 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
                 $fields = array_keys($fields);
             }
             foreach ($fields as $i=>$k) {
-                if(in_array('unused', $class->_fields[$k])) 
+                if(in_array('unused', $this->class->_fields[$k])){
                     unset($fields[$i]);
+                    unset($values[$i]);
+                }
             }
             $fields = "`" . implode("`, `", $fields) . "`";
             if (is_array($values[0])) {
@@ -258,7 +260,7 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
                 return NULL;
             }
             $this->fire('beforeGet', array(&$models));
-            $module->getTable()->acquire($models);
+            $module->push(X3_Model::create($module)->acquire($models));
             $this->fire('afterGet', array(&$module));
             return $module;
         }
@@ -376,8 +378,8 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
                 }
                 if (strpos($k, '.') > 0)
                     $k = str_replace('.', '`.`', $k);
-                if ($v == 'NULL' || $v === NULL || $v == 'NOT NULL') {
-                    if ($v === NULL)
+                if ($v === 'NULL' || is_null($v) || $v == 'NOT NULL') {
+                    if (is_null($v))
                         $v = 'NULL';
                     $s = "`$k` IS $v";
                 }elseif ($oper == '=')
