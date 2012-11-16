@@ -529,7 +529,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess{
             $class = $this->module->_fields[$name]['ref'][0];
             $key = $this->module->_fields[$name]['ref'][1];
             $class = new $class();
-            return $class->table->select('*')->where("$key={$this->$name}")->asObject(true);
+            return $class->getTable()->select('*')->where("$key={$this->$name}")->asObject(true);
         }
         $obj = self::$_queries[$this->tableName];
         return call_user_func_array(array($obj,$name), $parameters);

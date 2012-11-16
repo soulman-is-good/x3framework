@@ -174,11 +174,11 @@ class X3_Module_View extends X3_Module implements Iterator, ArrayAccess {
     }
 
     public function addError($field, $error) {
-        $this->table->addError($field, $error);
+        $this->getTable()->addError($field, $error);
     }
 
     public function save() {
-        return $this->table->save();
+        return $this->getTable()->save();
     }
 
     /**

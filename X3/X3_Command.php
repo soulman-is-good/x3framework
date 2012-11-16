@@ -13,9 +13,12 @@
 abstract class X3_Command extends X3_Component {
 
     public $action = 'index';
+    public $template = null;
 
     public function __construct($action = null) {
         $this->action = $action;
+        $this->template = new X3_Renderer($this);
+        $this->template->layout = null;
     }
 
     public function init(){}

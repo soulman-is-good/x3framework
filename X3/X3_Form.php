@@ -141,7 +141,7 @@ class X3_Form extends X3_Renderer {
             $attributes['name'] = !isset($attributes['name'])?get_class($this->module) . '[' . $options . ']':$attributes['name'];
             $attributes['id'] = !isset($attributes['id'])?get_class($this->module) . '_' . $options:$attributes['id'];
             if(!isset($attributes['%select'])) {
-                $attributes['%select'] = array($this->module->table->getPK(),'title');
+                $attributes['%select'] = array($this->module->getTable()->getPK(),'title');
             }
             $id = array_shift($attributes['%select']);
             $value = array_shift($attributes['%select']);
@@ -197,8 +197,8 @@ class X3_Form extends X3_Renderer {
     public function render($withLangs = true) {
         if($this->module == null) return '';
         $_html = '';
-        if(!$this->module->table->getIsNewRecord()){
-            $_html .= $this->hidden($this->module->table->getPK());
+        if(!$this->module->getTable()->getIsNewRecord()){
+            $_html .= $this->hidden($this->module->getTable()->getPK());
         }
         //TODO: make render function that renders whole form
         $fields = $this->module->fieldNames();
@@ -236,7 +236,7 @@ class X3_Form extends X3_Renderer {
         }else{
             $fields = $_fields;
         }
-        if($wrapper==null){
+        if($wrapper===null){
             if(is_array($this->defaultWrapper))
                 $wrapper = $this->defaultWrapper['row'];
             else
@@ -272,9 +272,9 @@ class X3_Form extends X3_Renderer {
                     if(isset($flds['ref']))
                         $tmp = $this->select($name);
                     elseif(in_array('password', $flds))
-                        $tmp = X3_Html::form_tag ('input', array('id'=>"{$class}_{$name}",'name'=>"{$class}[{$name}]",'value'=>'','type'=>'password'));
+                        $tmp = X3_Html::form_tag ('input', array('id'=>"{$class}_{$name}",'name'=>"{$class}[{$name}]",'value'=>'','type'=>'password','class'=>'string password'));
                     else
-                        $tmp = $this->input($name);
+                        $tmp = $this->input($name,array('class'=>'string'));
                     break;
                 case "datetime":
                         $val = $this->module->$name;
@@ -283,20 +283,22 @@ class X3_Form extends X3_Renderer {
                             $format = $flds['format'];
                         if($val == 0)
                             $val = time();
-                        $tmp = X3_Html::form_tag('input',array('type'=>'text','id'=>"{$class}_$name",'name'=>"{$class}[$name]",'value'=>date($format,$val)));
+                        $tmp = X3_Html::form_tag('input',array('type'=>'text','id'=>"{$class}_$name",'name'=>"{$class}[$name]",'value'=>date($format,$val),'class'=>'datetime'));
                     break;
                 case "file":
-                    $tmp = $this->file($name);
+                    $tmp = $this->file($name,array('class'=>'file'));
                     break;
                 case "boolean":
-                    $tmp = $this->checkbox($name);
+                    $tmp = $this->checkbox($name,array('class'=>'boolean'));
                     break;
                 case "text":
-                    $tmp = $this->textarea($name);
+                    $tmp = $this->textarea($name,array('class'=>'text'));
                     break;
                 case "html":
+                    $tmp = $this->textarea($name,array('class'=>'html'));
+                    break;
                 case "content":
-                    $tmp = $this->textarea($name);
+                    $tmp = $this->textarea($name,array('class'=>'content'));
                     break;
                 default:
                     $tmp = $this->input($name);

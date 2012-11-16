@@ -12,6 +12,11 @@
  */
 class X3_Thread extends X3_Component {
 
+    const GET_STREAM = 1;
+    const CHECK_CONNECTION = 2;
+    const HEADERS_ONLY = 3;
+    const RESPONSE_CODE = 4;
+    
     private $url = null;
     private $params = array();
     private $method = "POST";
@@ -21,26 +26,39 @@ class X3_Thread extends X3_Component {
     public $timeout = 60;
     private $error = '';
 
-    public function __construct($url, $params = array(), $method = "POST") {
+    public function __construct($url, $params = array(), $method = "POST",$timeout = 60) {
         $this->url = $url;
         $this->params = $params;
         $this->method = $method;
+        $this->timeout = $timeout;
+        $this->addTrigger('onError');
     }
 
-    public function create($url, $params = array(), $method = "POST") {
+    public static function create($url, $params = array(), $method = "POST",$timeout = 60) {
         return new self($url, $params, $method);
     }
 
     public function run($check_only=false) {
         $url = $this->url;
-        $params = $this->params;
         $parts = parse_url($url);
+        $params = array();
+        parse_str($parts['query'],$params);
+        $params = array_merge($this->params, $params);
         $err = '';
         if(empty($parts['host']))
             throw new X3_Exception('Host is not defined!');
-        if (!$fp = fsockopen($parts['host'], isset($parts['port']) ? $parts['port'] : 80,$errno,$err)) {
-            $this->error = $err;
+        try{
+            if (!$fp = fsockopen($parts['host'], isset($parts['port']) ? $parts['port'] : 80,$errno,$err,$this->timeout)) {
+                $this->error = $err;
+                return false;
+            }
+        }catch(Exception $e){
+            $this->error = $e->getMessage();
             return false;
+        }
+        if($check_only == self::CHECK_CONNECTION) {
+            fclose($fp);
+            return true;
         }
         $result = "";
         $data = http_build_query($params, '', '&');
@@ -52,10 +70,27 @@ class X3_Thread extends X3_Component {
         fwrite($fp, "Host: " . $parts['host'] . "\r\n");
         fwrite($fp, "Content-Type: $this->content_type\r\n");
         fwrite($fp, "Content-Length: " . strlen($data) . "\r\n");
+        fwrite($fp, "User-Agent: kansha.kz\r\n");
         fwrite($fp, "Connection: Close\r\n\r\n");
         if($this->method == "POST")
             fwrite($fp, $data);
-        if($check_only) return $fp;
+        if($check_only == self::GET_STREAM) 
+            return $fp;
+        if($check_only == self::RESPONSE_CODE){
+            $result .= fread($fp, 56);
+            fclose($fp);
+            $result = explode(' ', $result);
+            return (int)$result[1];
+        }
+        if($check_only == self::HEADERS_ONLY){
+            $line = "";
+            while(!($line == "\r\n")  && !feof($fp)){
+                $result .= $line;
+                $line = fread($fp, 128);
+            }
+            fclose($fp);    
+            return $result;
+        }
         while(!feof($fp))
             $result .= fread($fp, 1024);
         fclose($fp);
@@ -130,6 +165,12 @@ class X3_Thread extends X3_Component {
     
     public function getHeaders() {
         return $this->response['headers'];        
+    }
+    
+    public function onError($code, $message, $file, $line, $throw){
+        $throw = false;
+        $this->error = $message;
+        return true;
     }
 
 }

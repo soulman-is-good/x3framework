@@ -46,13 +46,8 @@ class X3_Mailer extends X3_Component {
     }
 
     public function __construct($params = array()) {
-        $this->boundary1 = rand(0, 9) . "-"
-                . rand(10000000000, 9999999999) . "-"
-                . rand(10000000000, 9999999999) . "=:"
-                . rand(10000, 99999);
-        $this->boundary2 = rand(0, 9) . "-" . rand(10000000000, 9999999999) . "-"
-                . rand(10000000000, 9999999999) . "=:"
-                . rand(10000, 99999);
+        $this->boundary1 = md5(time()).rand(0,9).rand(0,9) . "=_?:";
+        $this->boundary2 = md5(time()).rand(0,9).rand(0,9) . "=_?:";
     }
 
     public function send($to = null, $subject = null, $message = null, $from = null) {
@@ -63,7 +58,7 @@ class X3_Mailer extends X3_Component {
         if (is_array($to))
             $to = implode(", ", $to);
         if (!isset($to)) {
-            throw new X3_Exception('Адрес получателя не задан');
+            throw new X3_Exception('Адрес получателя не задан',500);
         }
 
         if (is_null($subject) && isset($args[1]))
@@ -80,19 +75,18 @@ class X3_Mailer extends X3_Component {
         } elseif (is_string($from)) {
             $reply = $from;
         }
-
-        $headers = $this->generateHeaders($from, $reply);
-
+        
         if (X3::app() != null)
             $encoding = X3::app()->encoding;
         else
             $encoding = mb_detect_encoding($args[1]);
 
+        $headers = $this->generateHeaders($from, $reply);
+        $body = $this->generateBody($message);
         if ($encoding != $this->encoding) {
             $subject = iconv($encoding, $this->encoding, $subject);
-            $message = iconv($encoding, $this->encoding, $message);
+            $body = iconv($encoding, $this->encoding, $body);
         }
-        $body = $this->generateBody($message);
         return mail($to, $subject, $body, $headers);
     }
 
@@ -104,84 +98,124 @@ class X3_Mailer extends X3_Component {
     public function getArgs() {
         return $this->args;
     }
+    
+    /**
+     * 
+     * @param string $src path to a local file
+     * @param string $disposition could be 'inline' or 'attachment'
+     * @return null|string Content-ID for <img src="cid:..."
+     */
+    public function addFile($src,$disposition = "inline") {
+        $src = realpath($src);
+        if($src!==false && is_file($src)){
+            $cid = basename($src)."@kansha.kz";
+            $this->files[$cid] = array($disposition, $src);
+            return $cid;
+        }
+        return null;
+    }
 
     protected function generateHeaders($from, $reply) {
-        $headers = "MIME-Version: 1.0\r\n";
-        $headers .= "From: $from\r\n";
-        $headers .= "Sender: $from\r\n";
-        $headers .= "Reply-To: $reply\r\n";
+        $copies = '';
         foreach ($this->copy as $cc) {
-            $headers .= "Cc: $cc\r\n";
+            $copies .= "Cc: $cc\r\n";
         }
+        $header = '';
         if (empty($this->files))
-            $headers .= "Content-type:multipart/alternative; charset=\"$this->encoding\";\r\n";
+            $header = "Content-Type: multipart/alternative; boundary=\"$this->boundary1\"";
         else
-            $headers .= "Content-type:multipart/mixed; charset=\"$this->encoding\";\r\n";
-        $headers .= "boundary=\"$this->boundary1\"";
+            $header = "Content-Type: multipart/related; boundary=\"$this->boundary1\"\r\nContent-Transfer-Encoding: quoted-printable\r\nContent-Disposition: inline";
+        $headers = <<<HEAD
+From: $from 
+Sender: $from
+Reply-To: $reply
+$header
+MIME-Version: 1.0
+
+This is a message in Mime Format.  If you see this, your mail reader does not support this format.
+
+HEAD;
         return $headers;
     }
 
     protected function generateBody($message) {
         $textmessage = strip_tags(nl2br($message), "<br>");
-        $body = $message;
         if (empty($this->files)) {
-            $body = "MIME-Version: 1.0\r\n
-                Content-Type: multipart/alternative;\r\n
-                --$this->boundary1\r\n
-                    Content-Type: text/plain;\r\n
-                    charset=\"$this->encoding\"\r\n
-                        Content-Transfer-Encoding: quoted-printable\r\n\r\n
-                    $textmessage\r\n
-                    --$this->boundary1\r\n
-                    Content-Type: text/html;\r\n
-                        charset=\"$this->encoding\"\r\n
-                            Content-Transfer-Encoding: quoted-printable\r\n\r\n
-                    $message\r\n\r\n
-                        --$this->boundary1--\r\n";
+$body =<<<BODY
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+    boundary="$this->boundary1"
+
+This is a multi-part message in MIME format.
+
+--$this->boundary1
+Content-Type: text/plain;
+    charset="$this->encoding"
+Content-Transfer-Encoding: 8bit
+
+$textmessage
+--$this->boundary1
+Content-Type: text/html;
+    charset="$this->encoding"
+Content-Transfer-Encoding: 8bit
+
+$message
+    
+--$this->boundary1--
+BODY;
         } else {
+            $sep = "B-Global-".md5(time()) . "=_?:";
             $attachments = '';
             //TODO: check file existance and availability (or check on add...)
-            foreach ($this->files as $file) {
+            foreach ($this->files as $cid=>$file) {
                 $type = '';
+                $disposition = $file[0];
+                $file = $file[1];
                 if (PHP_VERSION_ID >= 50300) {
                     $h = finfo_open(FILEINFO_MIME_TYPE);
                     $type = finfo_file($h, $file);
-                    fclose($h);
+                    //fclose($h);
                 }else
                     $type = mime_content_type($file);
 
-                $handle = fopen($file, 'rb');
-                $f_contents = fread($handle, filesize($file));
+                //$handle = fopen($file, 'rb');
+                $f_contents = file_get_contents($file); //fread($handle, filesize($file));
                 $A = chunk_split(base64_encode($f_contents));
-                fclose($handle);
+                //fclose($handle);
                 $name = basename($file);
-                $attachments.="--$this->boundary1\r\n
-                    Content-Type: $type;\r\n
-                        name=\"$name\"\r\n
-                            Content-Transfer-Encoding: base64\r\n
-                            Content-Disposition: attachment;\r\n
-                            filename=\"$name\"\r\n\r\n
-                        $A\r\n\r\n";
+                $attachments.=<<<ATTA
+
+--$this->boundary1
+Content-Type: $type; name="$name"
+Content-Transfer-Encoding: base64
+Content-ID: <$cid>
+Content-Disposition: $disposition; filename="$name"
+$A
+ATTA;
                 unset($A);
             }
-            $body = "This is a multi-part message in MIME format.
-                \r\n\r\n
-                --$this->boundary1\r\n
-                Content-Type: multipart/alternative;\r\n
-                boundary=\"$this->boundary2\"\r\n\r\n
-                    --$this->boundary2\r\n
-                        Content-Type: text/plain;\r\n
-                        charset=\"$this->encoding\"\r\n
-                            Content-Transfer-Encoding: quoted-printable\r\n\r\n
-                            $textmessage\r\n
-                                --$this->boundary2\r\n
-                                    Content-Type: text/html;\r\n
-                                    charset=\"$this->encoding\"\r\n
-                                        Content-Transfer-Encoding: quoted-printable\r\n\r\n
-                    $message\r\n\r\n
-                        --$this->boundary2--\r\n\r\n
-                    $attachments\r\n
-                        --$this->boundary1--\r\n";
+            $body = <<<EOBODY
+--$this->boundary1
+Content-Type: text/html; charset="$this->encoding"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+
+$message    
+$attachments
+
+--$this->boundary1--
+EOBODY;
+            //$body  = "MIME-Version: 1.0";
+            //$body .= "Content-Type: multipart/mixed; boundary=\"$this->boundary1\"\r\n";
+            //$body .= "\r\n";
+            //$body .= "This is a multi-part message in MIME format.\r\n";
+            //$body .= "\r\n";
+            //$body .= "--$this->boundary1\r\n";
+            //$body .= "Content-Type: text/html; charset=\"$this->encoding\"\r\n";
+            //$body .= "Content-Transfer-Encoding: 7-bit\r\n\r\n";
+            //$body .= "$message\r\n";
+            //$body .= "$attachments\r\n";
+            //$body .= "--$this->boundary1--\r\n";
         }
         return $body;
     }

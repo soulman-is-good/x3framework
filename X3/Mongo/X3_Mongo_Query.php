@@ -238,7 +238,7 @@ class X3_Mongo_Query extends X3_MySQL_Command implements X3_Interface_Query {
             if(empty($models)) {
                 return NULL;
             }
-            $module->table->acquire($models);
+            $module->getTable()->acquire($models);
             return $module;
         }
         if(empty($models)) return array();
@@ -247,7 +247,7 @@ class X3_Mongo_Query extends X3_MySQL_Command implements X3_Interface_Query {
             $tmp->acquire($model);
             $module->push($tmp);
             if($i==0)
-                $module->table->acquire($tmp);
+                $module->getTable()->acquire($tmp);
         }
         return $module;
     }

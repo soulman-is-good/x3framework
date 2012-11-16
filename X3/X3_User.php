@@ -70,7 +70,7 @@ class X3_User extends X3_Component {
     }
     
     public function remember($time=3600) {
-        if(is_strint($time))
+        if(is_string($time))
             $time = strtotime($time,time());
         else
             $time = time()+(int)$time;
@@ -89,6 +89,10 @@ class X3_User extends X3_Component {
             }
         }
         return false;
+    }
+    
+    public function store($name, $value, $time=3600) {
+        setcookie($this->key_prefix . $name, $value, $time, "/", null, false, true);
     }
 
     public function isGuest(){

@@ -93,7 +93,7 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
 
     public function toArray($current = false) {
         if ($current)
-            return $this->table->getAttributes();
+            return $this->getTable()->getAttributes();
         $models = array();
         foreach ($this->tables as $table) {
             $models[] = $table->getAttributes();
@@ -117,7 +117,7 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
     }
 
     public function afterGet($module) {
-        $module->table->setIsNewRecord(false);
+        $module->getTable()->setIsNewRecord(false);
         return true;
     }
 
@@ -138,7 +138,7 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
     }
 
     public function formQuery($params = array()) {
-        return $this->table->getQuery()->formQuery($params);
+        return $this->getTable()->getQuery()->formQuery($params);
     }
 
     public function getDefaultScope() {
@@ -146,11 +146,11 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
     }
 
     public function addError($field, $error) {
-        $this->table->addError($field, $error);
+        $this->getTable()->addError($field, $error);
     }
 
     public function save() {
-        return $this->table->save();
+        return $this->getTable()->save();
     }
 
     private function formCond($params) {
@@ -230,16 +230,43 @@ return array(false);//TODO: not tested!!!
             $class = get_called_class();
         $class = self::newInstance($class);
         $pk = mysql_real_escape_string($pk);
-        if (NULL !== ($model = $class->getExistent(array((string) $class->table->getPK() => $pk)))) {
+        //if (NULL !== ($model = $class->getExistent(array((string) $class->getTable()->getPK() => $pk)))) {
+            //if ($asArray)
+                //return $model->toArray(true);
+            //else
+                //return $model;
+        //}
+        if ($asArray)
+            return $class->getTable()->select('*')->where("`" . $class->getTable()->getPK() . "`='$pk'")->asArray(true);
+        else
+            return $class->getTable()->select('*')->where("`" . $class->getTable()->getPK() . "`='$pk'")->asObject(true);
+    }
+    
+    /**
+     *  <b>WARNING</b>
+     *  <i>For PHP lower than 5.3 you must implement this function</i>
+     * @param <type> $pk
+     * @param string $class Class name for static creation
+     * @return X3_Module_Table current class
+     */
+    public static function findByPk($pk, $class = null, $asArray = false) {
+        if ($class == null && PHP_VERSION_ID < 50300)
+            throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию getByPk(\$pk,\$class=__CLASS__,\$asArray=false)");
+        elseif ($class == null)
+            $class = get_called_class();
+        $class = self::getInstance($class);
+        $pk = mysql_real_escape_string($pk);
+        if (NULL !== ($model = $class->getExistent(array((string) $class->getTable()->getPK() => $pk)))) {
             if ($asArray)
                 return $model->toArray(true);
             else
                 return $model;
-        }
+        }else
+            $class = self::newInstance ($class);
         if ($asArray)
-            return $class->table->select('*')->where("`" . $class->table->getPK() . "`='$pk'")->asArray(true);
+            return $class->getTable()->select('*')->where("`" . $class->getTable()->getPK() . "`='$pk'")->asArray(true);
         else
-            return $class->table->select('*')->where("`" . $class->table->getPK() . "`='$pk'")->asObject(true);
+            return $class->getTable()->select('*')->where("`" . $class->getTable()->getPK() . "`='$pk'")->asObject(true);
     }
 
     public static function deleteByPk($pk, $class = null) {
@@ -249,7 +276,7 @@ return array(false);//TODO: not tested!!!
             $class = get_called_class();
         $class = self::newInstance($class);
         $pk = mysql_real_escape_string($pk);
-        return $class->table->delete()->where("`" . $class->table->getPK() . "`='$pk'")->execute();
+        return $class->getTable()->delete()->where("`" . $class->getTable()->getPK() . "`='$pk'")->execute();
     }
 
     public static function get($params = array(), $single = false, $class = null, $asArray = false) {
@@ -270,10 +297,10 @@ return array(false);//TODO: not tested!!!
                 return $model;
         }
         if ($asArray)
-            return $class->table->formQuery($params)->asArray($single);
+            return $class->getTable()->formQuery($params)->asArray($single);
         else
-            return $class->table->formQuery($params)->asObject($single);
-        //return  $class->table->select('*')->where($query)->asObject($single);
+            return $class->getTable()->formQuery($params)->asObject($single);
+        //return  $class->getTable()->select('*')->where($query)->asObject($single);
     }
 
     public static function update($fields, $params = array(), $class = null) {
@@ -284,7 +311,7 @@ return array(false);//TODO: not tested!!!
         if (!is_array($params))
             return NULL;
         $class = self::newInstance($class);
-        return $class->table->formQuery($params)->update($fields)->execute();
+        return $class->getTable()->formQuery($params)->update($fields)->execute();
     }
 
     public static function insert($fields, $params = array(), $returnStatus = false, $class = null) {
@@ -296,9 +323,9 @@ return array(false);//TODO: not tested!!!
             return NULL;
         $class = self::newInstance($class);
         if ($returnStatus)
-            return $class->table->formQuery($params)->insert($fields)->execute();
+            return $class->getTable()->formQuery($params)->insert($fields)->execute();
         else {
-            if ($class->table->formQuery($params)->insert($fields)->execute()) {
+            if ($class->getTable()->formQuery($params)->insert($fields)->execute()) {
                 if (isset($fields[0])) {
                     $tableClass = X3::app()->db->modelClass;
                     foreach ($fields as $field) {
@@ -309,7 +336,7 @@ return array(false);//TODO: not tested!!!
                         }
                     }
                 } else {
-                    $class->table->acquire($fields);
+                    $class->getTable()->acquire($fields);
                 }
             } else {
                 throw new X3_Exception("Ошибка при вставке данных!");
@@ -326,7 +353,7 @@ return array(false);//TODO: not tested!!!
         if (!is_array($params))
             $params = array();
         $class = self::newInstance($class);
-        return $class->table->formQuery($params)->count();
+        return X3::db()->count($class->getTable()->formQuery($params)->buildSQL());
     }
 
     public static function delete($params = array(), $class = null) {
@@ -339,7 +366,7 @@ return array(false);//TODO: not tested!!!
         $class = self::newInstance($class);
         if (empty($params))
             $params = array();
-        return $class->table->formQuery($params)->delete()->execute();
+        return $class->getTable()->formQuery($params)->delete()->execute();
     }
 
     public function getRelation($relation, $asArray = false) {
@@ -347,9 +374,9 @@ return array(false);//TODO: not tested!!!
             throw new X3_Exception("Missing relation '$relation'.");
         $R = self::$relations[$relation];
         if ($asArray)
-            return $this->table->formQuery($params)->asArray($single);
+            return $this->getTable()->formQuery($params)->asArray($single);
         else
-            return $class->table->formQuery($params)->asObject($single);
+            return $class->getTable()->formQuery($params)->asObject($single);
     }
 
     /**
@@ -378,8 +405,8 @@ return array(false);//TODO: not tested!!!
         }
         if (isset($this->_fields) && array_key_exists($name, $this->_fields))
             return $this->table[$name] = isset($this->_fields[$name]['default']) ? $this->_fields[$name]['default'] : "";
-        if ($this->table != null && in_array($name, $this->table->getQueries())) {
-            return $this->table->getQueries($name);
+        if ($this->table != null && in_array($name, $this->getTable()->getQueries())) {
+            return $this->getTable()->getQueries($name);
         }else
             return parent::__get($name);
     }

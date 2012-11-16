@@ -21,19 +21,19 @@ class X3_String extends X3_Component {
     private $encoding = 'UTF-8';
     private $length = false;
 
-    public function __construct($string,$encoding = null) {
+    public function __construct($string, $encoding = null) {
         $this->string = (string) $string;
-        if($encoding!=null)
+        if ($encoding != null)
             $this->encoding = $encoding;
-        elseif(isset(X3::app()->encoding)){
+        elseif (isset(X3::app()->encoding)) {
             $this->encoding = X3::app()->encoding;
         }
     }
 
-    public static function create($string,$encoding = null) {
-        return new self($string,$encoding);
+    public static function create($string, $encoding = null) {
+        return new self($string, $encoding);
     }
-    
+
     /**
      * 
      * @param string $string the whole string to cut
@@ -42,14 +42,14 @@ class X3_String extends X3_Component {
      * @param string $endsWith cutted string will end with this symbol
      * @param bool $force force cutting if there no symbols found
      * @return X3_String returns new instance of cutted string
-     */    
-    public static function cut($string,$count = 255, $find=array('.',';',"\n",' ') ,$endsWith = '&hellip;', $force = false) {
-        return self::create($string)->carefullCut($count, $find ,$endsWith, $force);
+     */
+    public static function cut($string, $count = 255, $find = array('.', ';', "\n", ' '), $endsWith = '&hellip;', $force = false) {
+        return self::create($string)->carefullCut($count, $find, $endsWith, $force);
     }
-    
+
     public function getLength() {
-        if($this->length===false)
-            $this->length = mb_strlen($this->string,$this->encoding);
+        if ($this->length === false)
+            $this->length = mb_strlen($this->string, $this->encoding);
         return $this->length;
     }
 
@@ -256,7 +256,7 @@ class X3_String extends X3_Component {
         return $this;
     }
 
-    public function translit($backward=false,$stripchars=array()) {
+    public function translit($backward = false, $stripchars = array()) {
         static $ru = array(
     'А', 'а', 'Б', 'б', 'В', 'в', 'Г', 'г', 'Д', 'д', 'Е', 'е',
     'Ё', 'ё', 'Ж', 'ж', 'З', 'з', 'И', 'и', 'Й', 'й', 'К', 'к',
@@ -273,13 +273,13 @@ class X3_String extends X3_Component {
     'Ch', 'ch', 'Sh', 'sh', 'Sch', 'sch', '\'', '\'', 'Y', 'y', '\'', '\'',
     'E', 'e', 'Ju', 'ju', 'Ja', 'ja'
         );
-        if(is_string($stripchars))
+        if (is_string($stripchars))
             $stripchars = array($stripchars);
-        if($backward)
+        if ($backward)
             $string = str_replace($en, $ru, $this->string);
         else
             $string = str_replace($ru, $en, $this->string);
-        foreach ($stripchars as $char){
+        foreach ($stripchars as $char) {
             $string = str_replace($char, '', $string);
         }
         return str_replace(' ', '_', $string);
@@ -317,10 +317,13 @@ class X3_String extends X3_Component {
      * @param string $protocol protocol name
      * @return string
      */
-    function check_protocol($protocol = 'http') {
+    public function check_protocol($protocol = 'http', $checkonly = true) {
         $url = trim($this->string);
-        $l = mb_strlen($protocol,$this->encoding) + 3;
-        return (mb_substr($url, 0, $l, $this->encoding) == "$protocol://" || empty($url)) ? $url : ("$protocol://" . $url);
+        $l = mb_strlen($protocol, $this->encoding) + 3;
+        if($checkonly)
+            return (mb_substr($url, 0, $l, $this->encoding) == "$protocol://") ? true : false;
+        else
+            return (mb_substr($url, 0, $l, $this->encoding) == "$protocol://" || empty($url)) ? $url : ("$protocol://" . $url);
     }
 
     public function strip_regexp() {
@@ -333,11 +336,11 @@ class X3_String extends X3_Component {
      * @param integer $type 0 - strpos 1 - strrpos 2 - stripos 3 - strripos
      * @return mixed first found needle position false otherwise
      */
-    public function strpos($needle,$type=0) {
+    public function strpos($needle, $type = 0, $offset = 0) {
         $haystack = $this->string;
         if (!is_array($needle))
             $needle = array($needle);
-        switch ($type){
+        switch ($type) {
             case 0:
                 $func = "mb_strpos";
                 break;
@@ -354,13 +357,12 @@ class X3_String extends X3_Component {
                 $func = "mb_strpos";
         }
         foreach ($needle as $what) {
-            if (($pos = call_user_func_array($func, array($haystack, $what,null,$this->encoding))) !== false)
+            if (($pos = call_user_func_array($func, array($haystack, $what, $offset, $this->encoding))) !== false)
                 return $pos;
         }
         return false;
     }
-    
-    
+
     /**
      * 
      * @param integer $count how many symbols to cut
@@ -369,15 +371,61 @@ class X3_String extends X3_Component {
      * @param bool $force force cutting if there no symbols found
      * @return X3_String returns new instance of cutted string
      */
-    public function carefullCut($count = 255, $find=array('.',';',"\n",' ') ,$endsWith = '&hellip;', $force = false) {
-        $text = self::create(mb_substr($this->string,0,$count,$this->encoding));
-        
-        if (($this->getLength() <= $count) || (!$force && $text->strpos($find,1) === false))
+    public function carefullCut($count = 255, $find = array('.', ';', "\n", ' '), $endsWith = '&hellip;', $force = false) {
+        $text = self::create(mb_substr($this->string, 0, $count, $this->encoding));
+
+        if (($this->getLength() <= $count) || (!$force && $text->strpos($find, 1) === false))
             return $text;
         else {
-            $text->set(mb_substr($text->string, 0, $text->strpos($find,1),$this->encoding));
+            $text->set(mb_substr($text->string, 0, $text->strpos($find, 1,1), $this->encoding));
         }
         return $text->set($text->string . $endsWith);
+    }
+
+    /**
+     * Searches and replaces needed string
+     * 
+     * @param string $search search string
+     * @param string $replace replace string
+     * @return string
+     */
+    public function replace($search, $replace) {
+        $subject = $this->string;
+        foreach ((array) $search as $key => $s) {
+            if ($s == '') {
+                continue;
+            }
+            $r = !is_array($replace) ? $replace : (array_key_exists($key, $replace) ? $replace[$key] : '');
+            $pos = $this->strpos($s);
+            while ($pos !== false) {
+                $subject = mb_substr($subject, 0, $pos, $this->encoding) . $r . mb_substr($subject, $pos + mb_strlen($s, $this->encoding), 65535, $this->encoding);
+                $pos = $this->strpos($s, $pos + mb_strlen($r, $this->encoding));
+            }
+        }
+        return $subject;
+    }
+
+    public function trim($chars = "", $chars_array = array()) {
+        $string = $this->string;
+        for ($x = 0; $x < iconv_strlen($chars, $this->encoding); $x++)
+            $chars_array[] = preg_quote(iconv_substr($chars, $x, 1, $this->encoding));
+        $encoded_char_list = implode("|", array_merge(array("\s", "\t", "\n", "\r", "\0", "\x0B"), $chars_array));
+
+        $string = preg_replace("~^($encoded_char_list)*~", "", $string);
+        $string = preg_replace("~($encoded_char_list)*$~", "", $string);
+        return $string;
+    }
+    
+    public function toLowerCase() {
+        if(extension_loaded('mbstring'))
+            return mb_strtolower($this->string,$this->encoding);
+        return strtolower($this->string);
+    }
+    
+    public function toUpperCase() {
+        if(extension_loaded('mbstring'))
+            return mb_strtoupper($this->string,$this->encoding);
+        return strtoupper($this->string);
     }
 
     public function __toString() {
@@ -386,4 +434,15 @@ class X3_String extends X3_Component {
 
 }
 
-?>
+
+if(!function_exists('mb_strpos')){
+    function mb_strpos($haystack,$needle,$offset=0,$encoding='UTF-8'){
+        return strpos($haystack, $needle,$offset);
+    }
+}
+
+if(!function_exists('mb_substr')){
+    function mb_substr($string, $start, $length=null,$encoding = 'UTF-8'){
+        return substr($string, $start, $length);
+    }
+}

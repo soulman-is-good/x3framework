@@ -141,7 +141,7 @@ class X3_App extends X3_Component {
         }
     }
 
-    public function getPathFromAlias($path = "") {
+    public function getPathFromAlias($path = "",$relative = false) {
         if (strpos($path, ':') > 1) { //1 - is Windows style drive type (C:\)
             $dirs = explode(':', $path);
             foreach ($dirs as $i => $dir) {
@@ -164,7 +164,7 @@ class X3_App extends X3_Component {
             $path = implode(DIRECTORY_SEPARATOR, $dirs);
         }elseif ($path == "")
             return $this->basePath;
-        return $path;
+        return ($relative?'':($this->basePath . DIRECTORY_SEPARATOR)) . $path;
     }
     
     public function hasComponent($name) {
@@ -224,13 +224,17 @@ class X3_App extends X3_Component {
             'trace' => $exception->getTraceAsString(),
         );
         try{
-            if (!headers_sent())
-                header("HTTP/1.0 {$data['code']} " . get_class($exception));
             if ($this->errorHandler != null) {
+                if (!headers_sent())
+                    header("HTTP/1.1 404 Not Found ");
                 $this->errorHandler = new $this->errorHandler($this->errorAction);
                 $this->errorHandler->controller->run();
-            }else
+                exit(0);
+            }else{
+                if (!headers_sent())
+                    header("HTTP/1.1 {$data['code']} " . get_class($exception));
                 $this->displayException($exception);
+            }
         }catch(Exception $e){
             echo "Error occured during handling exception!\n<br/>".$e->getMessage();
         }        
@@ -241,6 +245,9 @@ class X3_App extends X3_Component {
      * @param CErrorEvent the PHP error event
      */
     public function handleError($code, $message, $file, $line) {
+        $throw = true;
+        $this->fire('onError',array($code,$message,$file,$line,&$throw));
+        if(!$throw) return true;
         $trace = debug_backtrace();
         // skip the first 3 stacks as they do not tell the error position
         if (count($trace) > 3)
@@ -269,13 +276,17 @@ class X3_App extends X3_Component {
                 //'source' => $this->getSourceLines($event->file, $event->line),
         );
         try{
-            if (!headers_sent())
-                header("HTTP/1.0 500 PHP Error");
             if ($this->errorHandler != null) {
+                if (!headers_sent())
+                    header("HTTP/1.0 404 Not Found");
                 $this->errorHandler = new $this->errorHandler($this->errorAction);
                 $this->errorHandler->run();
-            }else
+                exit(0);
+            }else{
+                if (!headers_sent())
+                    header("HTTP/1.0 500 PHP Error");
                 $this->displayError($code, $message, $file, $line);
+            }
         }catch(Exception $e){
             echo "Error occured during handling an error!\n<br/>".$e->getMessage();
         }

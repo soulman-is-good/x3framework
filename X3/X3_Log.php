@@ -23,7 +23,7 @@ class X3_Log extends X3_Component {
         return $this->category;
     }
 
-    public function processLog($msg) {
+    public function processLog($msg,$category='*') {
         
     }
 }

@@ -61,6 +61,8 @@ class X3_Console extends X3_Component {
         foreach ($config as $name => $value) {
             if (property_exists($this, $name))
                 $this->$name = $value;
+            else
+                $this->global[$name] = $value;
         }
         list($module,$action) = $this->initArgs();
         //mb_internal_encoding($this->encoding);
@@ -103,7 +105,7 @@ class X3_Console extends X3_Component {
     
     public function exec($command) {
         if(is_string($command)){
-            $command = explode(" ", $string);
+            $command = explode(" ", $command);
             array_unshift($command, "-");
         }
         list($module,$action) = $this->initArgs($command);
@@ -148,6 +150,7 @@ class X3_Console extends X3_Component {
         $module = 'site';
         $action = 'index';
         if(isset($argv)){
+            //0 argument is a script name
             array_shift($argv);
             $module = array_shift($argv);
             $action = array_shift($argv);
@@ -157,6 +160,7 @@ class X3_Console extends X3_Component {
                 $action = 'index';
             
             foreach($argv as $arg){
+                //TODO: backslash = sign. Ex: site test var1=abc\=cdf 
                 $a = explode('=', $arg);
                 $this->global[$a[0]] = (isset($a[1])?trim($a[1],"\"'"):true);
             }
@@ -181,7 +185,7 @@ class X3_Console extends X3_Component {
         }
     }
 
-    public function getPathFromAlias($path = "") {
+    public function getPathFromAlias($path = "",$relative = false) {
         if (strpos($path, ':') > 1) { //1 - is Windows style drive type (C:\)
             $dirs = explode(':', $path);
             foreach ($dirs as $i => $dir) {
@@ -204,7 +208,7 @@ class X3_Console extends X3_Component {
             $path = implode(DIRECTORY_SEPARATOR, $dirs);
         }elseif ($path == "")
             return $this->basePath;
-        return $path;
+        return ($relative?'':($this->basePath . DIRECTORY_SEPARATOR)) . $path;
     }
     
     public function hasComponent($name) {
@@ -220,6 +224,8 @@ class X3_Console extends X3_Component {
             //return parent::__get($name);
             if (array_key_exists($name, self::$_components))
                 return self::$_components[$name];
+            elseif(isset($this->global[$name]))
+                return $this->global[$name];            
             else
                 return $this->$name;
         }
@@ -265,6 +271,9 @@ class X3_Console extends X3_Component {
      * @param CErrorEvent the PHP error event
      */
     public function handleError($code, $message, $file, $line) {
+        $throw = true;
+        $this->fire('onError',array($code,$message,$file,$line,&$throw));
+        if(!$throw) return true;
         $trace = debug_backtrace();
         // skip the first 3 stacks as they do not tell the error position
         if (count($trace) > 3)

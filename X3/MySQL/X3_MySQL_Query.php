@@ -141,8 +141,10 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
 
                 if (is_null($field[$k]))
                     $values[] = "`$k`=NULL";
-                else
+                else{
+                    $v = mysql_real_escape_string($v);
                     $values[] = "`$k`='$v'";
+                }
             }
             $this->values = implode(', ', $values);
         }else {
@@ -150,8 +152,10 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
             $value = trim($value, "'");
             if ($value === null)
                 $this->values = "`$field`=NULL";
-            else
+            else{
+                $value = mysql_real_escape_string($value);
                 $this->values = "`$field`='$value'";
+            }
         }
         return $this;
     }
@@ -180,16 +184,20 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
                 $values = array();
                 foreach ($_val as $v)
                     foreach ($v as $i => $l)
-                        if (!is_null($l))
+                        if (!is_null($l)){
+                            $l = mysql_real_escape_string($l);
                             $v[$i] = "'$l'";
+                        }
                 $values[] = "(" . implode(", ", $v) . ")";
                 $values = implode(',', $values);
             }else {
                 foreach ($values as $i => $val) {
                     if (is_null($val))
                         $values[$i] = "NULL";
-                    else
+                    else{
+                        $val = mysql_real_escape_string($val);
                         $values[$i] = "'$val'";
+                    }
                 }
                 $values = "(" . implode(", ", $values) . ")";
             }
@@ -317,7 +325,7 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
             $this->select("{$table}.*");
         }
         $key = strtolower(key($params));
-        if (!in_array($key, array('@join', '@condition', '@limit', '@order', '@offset'))) {
+        if (!in_array($key, array('@join', '@condition', '@limit', '@order', '@offset','@select'))) {
             $tmp = $params;
             $params = array();
             $params['@condition'] = $tmp;
@@ -326,6 +334,9 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
         foreach ($params as $key => $array) {
             $key = strtolower($key);
             switch ($key) {
+                case "@select":
+                    $this->select($array);
+                    break;
                 case "@join":
                     $this->join($this->formJoin($array));
                     break;
@@ -337,6 +348,9 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
                     break;
                 case "@offset":
                     $this->offset($array);
+                    break;
+                case "@group":
+                    $this->group($array);
                     break;
                 case "@order":
                     if (is_array($array))
@@ -376,16 +390,20 @@ class X3_MySQL_Query extends X3_MySQL_Command implements X3_Interface_Query {
                     $oper = key($v);
                     $v = current($v);
                 }
-                if (strpos($k, '.') > 0)
-                    $k = str_replace('.', '`.`', $k);
-                if ($v === 'NULL' || is_null($v) || $v == 'NOT NULL') {
-                    if (is_null($v))
-                        $v = 'NULL';
-                    $s = "`$k` IS $v";
-                }elseif ($oper == '=')
-                    $s = "`$k` $oper " . (is_string($v) ? "'$v'" : $v);
-                else
-                    $s = "`$k` $oper $v";
+                if($oper=='@@'){
+                    $s = $v;
+                }else{
+                    if (strpos($k, '.') > 0)
+                        $k = str_replace('.', '`.`', $k);
+                    if ($v === 'NULL' || is_null($v) || $v == 'NOT NULL') {
+                        if (is_null($v))
+                            $v = 'NULL';
+                        $s = "`$k` IS $v";
+                    }elseif ($oper == '=')
+                        $s = "`$k` $oper " . (is_string($v) ? "'$v'" : $v);
+                    else
+                        $s = "`$k` $oper $v";
+                }
                 if ($nv !== false)
                     $query .= "$s AND ";
                 else

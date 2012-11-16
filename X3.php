@@ -70,7 +70,7 @@ class X3 {
         return new X3_App($config);
     }
     
-    public function console($config) {
+    public static function console($config) {
         if (is_string($config) && is_file($config))
             $config = include($config); //taking configuration array
         
@@ -118,18 +118,18 @@ class X3 {
                include($file);
                return true;
             }else
-                $path = str_replace ('_', DIRECTORY_SEPARATOR, $className) . '.php';
+               $path = str_replace ('_', DIRECTORY_SEPARATOR, $className) . '.php';
         }else
             $path = $className . '.php';
         //echo "$className<br/>";
-        $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->MODULES_DIR . DIRECTORY_SEPARATOR . $path;
+        $file = self::$_app->basePath . DIRECTORY_SEPARATOR . self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->MODULES_DIR . DIRECTORY_SEPARATOR . $path;
         if(!file_exists($file) && self::$_app instanceof X3_Console)
-            $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->COMMANDS_DIR . DIRECTORY_SEPARATOR . $path;
+            $file = self::$_app->basePath . DIRECTORY_SEPARATOR . self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->COMMANDS_DIR . DIRECTORY_SEPARATOR . $path;
         if(!file_exists($file))
-            $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->HELPERS_DIR . DIRECTORY_SEPARATOR . $className
+            $file = self::$_app->basePath . DIRECTORY_SEPARATOR . self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->HELPERS_DIR . DIRECTORY_SEPARATOR . $className
                                                                                                     . DIRECTORY_SEPARATOR . $path;
         if(!file_exists($file))
-            $file = self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->HELPERS_DIR . DIRECTORY_SEPARATOR . $path;
+            $file = self::$_app->basePath . DIRECTORY_SEPARATOR . self::$_app->APPLICATION_DIR . DIRECTORY_SEPARATOR . self::$_app->HELPERS_DIR . DIRECTORY_SEPARATOR . $path;
         if(is_file($file))
             include($file);
         return true;

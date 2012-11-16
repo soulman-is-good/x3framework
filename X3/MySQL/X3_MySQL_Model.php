@@ -71,7 +71,8 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
             if (in_array('unused', $field))
                 continue;
             $dataType = $this->parseDataType($field);
-            $select[] = "`$name` " . $this->compile($dataType);
+            $dataType['Field'] = $name;
+            $select[] = "`$name` " . $this->compile($dataType,true);
         }
         $this->_alter_stack[$this->tableName]->action = "CREATE/TABLE";
         $this->_alter_stack[$this->tableName]->select = implode(', ', $select);
@@ -104,6 +105,8 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
         $columns = self::$_columns[$this->tableName];
         if (is_null($columns))
             return false;
+        $primary = array();
+        $primary_found = false;
         foreach ($this->module->_fields as $name => $field) {
             $found = false;
             $change = false;
@@ -118,18 +121,21 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
             $dataType = $this->parseDataType($field);
             $dataType['Field'] = $name;
             $this->_dataTypes[$name] = $dataType;
-            if ($dataType['Key'] == 'PRI')
-                $this->_PK = $name;
+            if ($dataType['Key'] == 'PRI'){
+                if($this->_PK == NULL)
+                    $this->_PK = $name;
+                $primary[] = $name;
+            }
             $modifyField = '';
             do {
                 $k['Field'] = trim($k['Field'], '`');
                 if ($k['Field'] == $name) {
                     $diff = array_diff_assoc($dataType,$k);
-                    //if($name=='category_id'){var_dump($diff);die;}
                     if (!empty($diff))
                         $change = true;
                     $found = true;
                     $modifyField = $k['Field'];
+                    
                     if (isset($diff['Key'])) {
                         if ($k['Key'] == 'MUL' || $k['Key'] == 'UNI') {
                             //TODO: Other keys?
@@ -137,6 +143,8 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
                             $Query->action = 'ALTER/TABLE/DROP';
                             $Query->select = "INDEX `{$name}`";
                             $Query->execute();
+                        }elseif($k['Key'] == 'PRI'){
+                            $primary_found = true;
                         }
                         $what = (($diff['Key'] == 'MUL') ? 'INDEX' : (($diff['Key'] == 'UNI') ? 'UNIQUE' : false));
                         if ($what !== false) {
@@ -148,6 +156,22 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
                             $Query->action = 'ALTER/TABLE/ADD';
                             $Query->select = "$what (`{$name}`)";
                             $this->_alter_stack[$name . '_INDEX'] = $Query;
+                        }elseif($diff['Key'] == 'PRI'){
+                            if(isset($this->_alter_stack['PRIMARY']))
+                                $Query = $this->_alter_stack['PRIMARY'];
+                            else{
+                                $Query = new X3_Query($this->tableName, $this->module);
+                            }
+                            $key = implode('`,`', $primary);
+                            if($primary_found || $k['Key'] == 'PRI'){
+                                $Query->action = 'ALTER/TABLE/DROP';
+                                $Query->select = "PRIMARY KEY, ADD PRIMARY KEY (`{$key}`)";
+                                $primary_found = true;
+                            }else{
+                                $Query->action = 'ALTER/TABLE/ADD';
+                                $Query->select = "PRIMARY KEY (`{$key}`)";
+                            }
+                            $this->_alter_stack['PRIMARY'] = $Query;
                         }
                     }
                     unset($columns[key($columns)]);
@@ -191,7 +215,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
         //TODO: Alter table
     }
 
-    public function parseDataType($field) {
+    public function parseDataType($field,$create=false) {
         if (!is_array($field))
             throw new X3_Exception('$field variable must be an array', 500);
         $result = array(
@@ -221,16 +245,18 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
             $null = "NOT NULL";
         }
         switch ($dataType) {
+            case 'double':
+            case 'decimal':
+            case 'real':
             case 'float':
                 if (!$arg)
                     $arg = "7,2";
                 $mantisa = explode(',', $arg);
                 if (sizeof($mantisa) == 1) {
                     $mantisa = 0;
-                    $dataType = "float";
                 } else {
                     $mantisa = (int) array_pop($mantisa);
-                    $dataType = "float($arg)";
+                    $dataType = "$dataType($arg)";
                 }
                 if (isset($field['default'])) {
                     $def = substr($field['default'], strpos($field['default'], '.') + 1);
@@ -310,7 +336,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
      * @param array $data of column definition
      * @return string SQL string
      */
-    public function compile($data) {
+    public function compile($data,$create = false) {
         if ($data['Null'] == 'YES')
             $null = "NULL";
         else
@@ -320,12 +346,21 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
         else
             $default = '';
         $key = "";
-        switch ($data['Key']) {
-            case "PRI":
-                $key = "PRIMARY KEY";
-                break;
-            default:
-                break;
+        if($create){
+            $name = $data['Field'];
+            switch ($data['Key']) {
+                case "PRI":
+                        $key = "PRIMARY KEY";
+                    break;
+                case "MUL":
+                        //$key = "INDEX (`{$name}`)";
+                    break;
+                case "UNI":
+                        //$key = "UNIQUE (`{$name}`)";
+                    break;
+                default:
+                    break;
+            }
         }
         $dataType = strtoupper($data['Type']);
         if(strpos($dataType,'CHAR')!==false || strpos($dataType,'TEXT')!==false || strpos($dataType,'ENUM')!==false || strpos($dataType,'SET')!==false)
@@ -401,7 +436,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
                 foreach($arg as &$a)
                     $a = trim($a,'"\'');
             }else
-            if ($arg && $dataType != 'float') {
+            if ($arg && $dataType != 'float' && $dataType != 'decimal' && $dataType != 'real' && $dataType != 'double') {
                 if (strpos($arg, '|') !== false) {
                     $arg = explode('|', $arg);
                     $min = array_shift($arg);
@@ -435,11 +470,11 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
                             $this->addError($name, (isset($field['errors']['email'])) ? $field['errors']['email'] : X3::translate('Поле {attribute} не является верным e-mail адресом', array('attribute' => $this->module->fieldName($name))));
                     break;
                 case 'string':
-                    if ($isset && $this[$name] !== null)
+                    if ($isset && $this[$name] !== null){
                         $this[$name] = strip_tags($this[$name]);
+                    }
                     break;
                 case 'text':
-                    $this[$name] = mysql_real_escape_string($this[$name]);
                     break;
                 case 'content':
                     if ($isset && $this[$name] !== null)
@@ -456,14 +491,17 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
                     if ($default != 'NULL' && preg_match('/[^0-9]/', $this[$name]) > 0)
                         $this->addError($name, (isset($field['errors']['integer'])) ? $field['errors']['integer'] : X3::translate('Поле {attribute} должно быть целым числом', array('attribute' => $this->module->fieldName($name))));
                     break;
+                case 'decimal':
+                case 'real':
+                case 'double':
                 case 'float':
                     $this[$name] = str_replace(",", ".", $this[$name]);
                     if ($default != 'NULL' && preg_match('/(^[-0-9]+?[.][0-9]+$)|(^[0-9]+$)/', $this[$name]) == 0)
-                        $this->addError($name, (isset($field['errors']['float'])) ? $field['errors']['float'] : X3::translate('Поле {attribute} должно быть вещественным числом', array('attribute' => $this->module->fieldName($name))));
+                        $this->addError($name, (isset($field['errors'][$dataType])) ? $field['errors'][$dataType] : X3::translate('Поле {attribute} должно быть вещественным числом', array('attribute' => $this->module->fieldName($name))));
                     break;
                 case 'enum':
                     if((is_numeric($this[$name]) && !isset($arg[$this[$name]])) || !in_array($this[$name],$arg)){
-                        $this->addError($name, (isset($field['errors']['float'])) ? $field['errors']['enum'] : X3::translate('Полю {attribute} задан не верный параметр', array('attribute' => $this->module->fieldName($name))));
+                        $this->addError($name, (isset($field['errors']['enum'])) ? $field['errors']['enum'] : X3::translate('Полю {attribute} задан не верный параметр', array('attribute' => $this->module->fieldName($name))));
                     }
                     break;
                 default:
@@ -484,7 +522,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
             }
         }
         $this->module->afterValidate();
-        return empty($this->errors);
+        return empty($this->_errors);
     }
 
     public function save() {
@@ -499,6 +537,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
         if (!$this->_new) {
             //TODO: Can't UPDATE without primary key if no WHERE;
             //TODO: Optimization if module->tables != empty -> onEnd -> query all updates : else realtime
+            //var_dump($attributes);exit;
             $rez = $this->update($attributes)->where("`$this->_PK`='" . $this->attributes[$this->_PK] . "'")->execute();
             $this->module->afterSave();
             return $rez;
@@ -598,7 +637,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
             $class = $this->module->_fields[$name]['ref'][0];
             $key = $this->module->_fields[$name]['ref'][1];
             $class = new $class();
-            return $class->table->select('*')->where("$key={$this->$name}")->asObject(true);
+            return $class->getTable()->select('*')->where("$key={$this->$name}")->asObject(true);
         }
         $obj = self::$_queries[$this->tableName];
         return call_user_func_array(array($obj, $name), $parameters);

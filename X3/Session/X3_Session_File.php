@@ -119,6 +119,17 @@ class X3_Session_File extends X3_Component implements X3_Interface_Session, Arra
     /**
      * Setters, getters and other
      */
+    public function __unset($name) {
+        if (isset($_SESSION[$key]))
+            unset($_SESSION[$key]);
+        elseif (isset($_SESSION['X3-ONCE-' . $key])) {
+            unset($_SESSION['X3-ONCE-' . $key]);
+        } elseif (isset($_SESSION['X3-AJAX-' . $key])) {
+            unset($_SESSION['X3-AJAX-' . $key]);
+        }else
+            parent::__unset($name);
+    }
+    
     public function offsetExists($offset) {
         return array_key_exists($offset, $_SESSION);
     }
@@ -130,10 +141,12 @@ class X3_Session_File extends X3_Component implements X3_Interface_Session, Arra
     public function offsetUnset($offset) {
         if (isset($_SESSION[$offset]))
             unset($_SESSION[$offset]);
+        if (isset($_COOKIE[$offset]))
+            setcookie ($offset);
     }
 
     public function offsetGet($offset) {
-        return array_key_exists($offset, $_SESSION) ? $_SESSION[$offset] : null;
+        return array_key_exists($offset, $_SESSION) ? $_SESSION[$offset] : (isset($_COOKIE[$offset])?$_COOKIE[$offset]:null);
     }
 
     public function rewind() {

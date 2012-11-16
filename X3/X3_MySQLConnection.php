@@ -58,15 +58,16 @@ class X3_MySQLConnection extends X3_Component {
             throw new X3_Exception("Could not connect to database", 500);
         }
         @mysql_query("SET NAMES utf8");
+        @mysql_query("SET lc_time_names = 'ru_RU'");
         return true;
     }
 
     public function validateSQL($sql=null) {
-        $this->connect();
-        if($sql != null)
-            return mysql_real_escape_string($sql);
+        if(is_null($sql))
+            return null;
+        return mysql_real_escape_string($sql);
         //$this->sql = mysql_real_escape_string($this->sql); // strange it is not working
-        return $this->sql;
+        //return $this->sql;
     }
 
     public function fetch($sql = null) {
@@ -109,6 +110,18 @@ class X3_MySQLConnection extends X3_Component {
         $this->query_num++;
         //TODO:Handling mysql_unbuffered_query
         return mysql_query($this->sql, self::$_db);
+    }
+    
+    public function count($sql = NULL) {
+        if($sql == null && $this->sql != null)
+            $sql = $this->sql;
+        elseif($sql == null)
+            return null;
+        $q = $this->query($sql,false);
+        
+        if(!is_resource($q))
+            return false;
+        return mysql_num_rows($q);
     }
 
     public function fetchAttributes($table) {

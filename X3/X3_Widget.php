@@ -1,13 +1,7 @@
 <?php
-
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 /**
- * Description of X3_Widget
- *
+ * X3_Widget
+ * 
  * @author Soul_man
  */
 class X3_Widget extends X3_Renderer{

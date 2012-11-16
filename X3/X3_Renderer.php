@@ -98,7 +98,7 @@ class X3_Renderer extends X3_Component {
     }
 
     public function resolveViewFile($viewFile) {
-        $path = X3::app()->getPathFromAlias($viewFile);
+        $path = X3::app()->getPathFromAlias($viewFile,true);
         if (!is_file($path))
             $viewPath = X3::app()->basePath . DIRECTORY_SEPARATOR . X3::app()->APPLICATION_DIR
                     . DIRECTORY_SEPARATOR . X3::app()->VIEWS_DIR . DIRECTORY_SEPARATOR . $this->module->controller->id
@@ -111,7 +111,7 @@ class X3_Renderer extends X3_Component {
     }
 
     public function resolveLayoutFile($viewFile) {
-        $path = X3::app()->getPathFromAlias($viewFile);
+        $path = X3::app()->getPathFromAlias($viewFile,true);
         if (!is_file($path))
             $viewPath = X3::app()->basePath . DIRECTORY_SEPARATOR . X3::app()->APPLICATION_DIR
                     . DIRECTORY_SEPARATOR . X3::app()->VIEWS_DIR . DIRECTORY_SEPARATOR

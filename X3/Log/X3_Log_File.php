@@ -14,6 +14,7 @@ class X3_Log_File extends X3_Log {
     private $directory = 'logs';
     private $filename = null;
     private $prefix = '[d.m.Y H:i:s] ';
+    private $_category = '*';
     /**
      *
      * @var boolean flashes log file each application run;
@@ -32,23 +33,21 @@ class X3_Log_File extends X3_Log {
             if(!mkdir($this->directory))
                 throw new X3_Exception("log directory does not exist!",500);
         if(isset($props['filename'])){
-            $file = explode('.', $props['filename']);
-            $ext = '.log';
-            if(sizeof($file)>1)
-                $ext = '.' . array_pop($file);
-            $file = implode('.', $file);
+            $file = $props['filename'];
+            $file = str_replace("{%category}",$this->_category,$file);
             $date = array();
             if(preg_match("#\{(.+)?\}#",$file,$date)){
                 $date[1] = date($date[1]);
                 $file = str_replace($date[0],$date[1],$file);
             }
-            $this->filename = $file . $ext;
+            $this->filename = $file;
         }else
             $this->filename = date('app-d_m_Y') . '.log';
         if(isset($props['prefix']))
             $this->prefix = $props['prefix'];
     }
-    public function  processLog($log) {
+    public function  processLog($log,$category = '*') {
+        $this->_category = $category;
         if($this->directory == null)
             throw new X3_Exception("log directory does not exist!",500);
         if(!is_writable($this->directory))

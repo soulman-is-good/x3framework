@@ -44,6 +44,7 @@ class X3_Router extends X3_Component {
                     $route = str_replace('$'.($i+1), $replacement, $route);
                 }
                 list($module,$action) = X3::app()->request->resolveURI($route);
+                break;
             }
         }
     }

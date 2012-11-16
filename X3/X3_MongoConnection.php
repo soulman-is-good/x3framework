@@ -24,6 +24,7 @@ class X3_MongoConnection extends X3_Component {
 
     protected $sql = NULL;
 
+    private $_lazyConnect = false;
     private $bTransaction = false;
     private $transaction = array();
 
@@ -33,26 +34,31 @@ class X3_MongoConnection extends X3_Component {
     public $modelClass = "X3_Mongo_Model";
     
     public function __construct($config = null) {
+        if(isset($config['lazyConnect'])){
+            $this->_lazyConnect = (bool)$config['lazyConnect'];
+            unset($config['lazyConnect']);
+        }
         if($config == null || !is_array($config))
             $config = $this->config;
         else
             $this->config = $config;
-        
-        $this->connect($config);
+        if(!$this->_lazyConnect)
+            $this->connect($config);
         
     }
 
     public function connect($config = array()) {
         if(self::$_db !== NULL) return false;
         if(empty($config)) $config = $this->config;
-        $server  = (isset($config['user']))?$config['user'].':':'';
-        $server .= (isset($config['password']))?$config['password'].'@':'';
+        $server  = (isset($config['user']))?$config['user']:'';
+        $server .= (isset($config['password']))?':'.$config['password']:'';
+        $server .= (isset($config['user']) || isset($config['user']))?'@':'';
         $server .= (isset($config['host']))?$config['host']:'localhost';
-        $dbname = (isset($config['database']))?$config['database']:'information_schema';
+        $dbname = (isset($config['database']))?$config['database']:'local';
         $connection = new Mongo($server);        
         if($connection===false){
             throw new X3_Exception("Could not connect to mongo server", 500);
-        }if(false!==(self::$_db = $connection->selectDB($dbname))){
+        }if(false===(self::$_db = $connection->selectDB($dbname))){
             throw new X3_Exception("Could not connect to database", 500);
         }
     }
@@ -84,9 +90,8 @@ class X3_MongoConnection extends X3_Component {
         }elseif(is_array($val)){
             $this->sql = $val;
             $func = key($val);
-            $func = explode(':',$func);
-            list($coll,$func) = $func;
             $val = $val[$func];
+            list($coll,$func) = explode(':',$func);
             if(X3_DEBUG)
                 X3::log(json_encode($val),'db');
             $this->query_num++;
@@ -94,7 +99,7 @@ class X3_MongoConnection extends X3_Component {
         }
         return FALSE;
     }
-
+    
     public function startTransaction() {
         $this->bTransaction = true;
         $this->transaction = array();
