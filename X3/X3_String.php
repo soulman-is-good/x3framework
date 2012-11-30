@@ -427,6 +427,12 @@ class X3_String extends X3_Component {
             return mb_strtoupper($this->string,$this->encoding);
         return strtoupper($this->string);
     }
+    
+    public function format($format) {
+        $str = trim(sprintf($format,$this->string),"0");
+        $str = trim($str,".");
+        return $str;
+    }
 
     public function __toString() {
         return (string) $this->string;

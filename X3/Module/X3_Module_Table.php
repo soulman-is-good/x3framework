@@ -14,10 +14,11 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
 
     public $tableName = null;
     public $_fields = array();
-    public $relations = array();
+    private static $relations = array();
     private $tables = array();
     private $position = 0;
     private $table = null;
+    public $locked = false;
 
     public function __construct($action = null) {
         if ($this->tableName != null && !empty($this->_fields)) {
@@ -150,6 +151,10 @@ class X3_Module_Table extends X3_Module implements Iterator, ArrayAccess {
     }
 
     public function save() {
+        if(X3::app()->hasComponent('cache') && !$this->getTable()->getIsNewRecord()){
+            $class = get_class($this);
+            X3::cache()->delete($class . $this->id);
+        }
         return $this->getTable()->save();
     }
 
@@ -199,6 +204,10 @@ return array(false);//TODO: not tested!!!
         }
         return $result;
     }
+    
+    public function relations() {
+        return array();
+    }
 
     public function getExistent($param) {
         if (empty($param) || empty($this->tables))
@@ -223,23 +232,32 @@ return array(false);//TODO: not tested!!!
      * @param string $class Class name for static creation
      * @return X3_Module_Table current class
      */
-    public static function getByPk($pk, $class = null, $asArray = false) {
-        if ($class == null && PHP_VERSION_ID < 50300)
+    public static function getByPk($pk, $className = null, $asArray = false) {
+        if ($className == null && PHP_VERSION_ID < 50300)
             throw new X3_Exception("Для PHP<5.3 вам необходимо наследовать функцию getByPk(\$pk,\$class=__CLASS__,\$asArray=false)");
-        elseif ($class == null)
-            $class = get_called_class();
-        $class = self::newInstance($class);
+        elseif ($className == null)
+            $className = get_called_class();
+        $class = self::newInstance($className);
         $pk = mysql_real_escape_string($pk);
-        //if (NULL !== ($model = $class->getExistent(array((string) $class->getTable()->getPK() => $pk)))) {
-            //if ($asArray)
-                //return $model->toArray(true);
-            //else
-                //return $model;
-        //}
-        if ($asArray)
-            return $class->getTable()->select('*')->where("`" . $class->getTable()->getPK() . "`='$pk'")->asArray(true);
-        else
-            return $class->getTable()->select('*')->where("`" . $class->getTable()->getPK() . "`='$pk'")->asObject(true);
+        if(X3::app()->hasComponent('cache') && (false != ($data = X3::cache()->get($className . $pk)))){
+            if ($asArray)
+                return $data;
+            $class->getTable()->acquire($data);
+            $class->getTable()->setIsNewRecord(false);
+            return $class;
+        }
+        if ($asArray){
+            $data = $class->getTable()->select('*')->where("`" . $class->getTable()->getPK() . "`='$pk'")->asArray(true);
+            X3::cache()->set($className . $pk , $data,2592000);
+            return $data;
+        }else{
+            $class = $class->getTable()->select('*')->where("`" . $class->getTable()->getPK() . "`='$pk'")->asObject(true);
+            if($class != null){
+                $data = $class->toArray(true);
+                X3::cache()->set($className . $pk , $data,2592000);
+            }
+            return $class;
+        }
     }
     
     /**
@@ -405,6 +423,21 @@ return array(false);//TODO: not tested!!!
         }
         if (isset($this->_fields) && array_key_exists($name, $this->_fields))
             return $this->table[$name] = isset($this->_fields[$name]['default']) ? $this->_fields[$name]['default'] : "";
+        
+        $rel = $this->relations();
+        if (isset($rel[$name])) {
+            $rel = $rel[$name];
+            $pk = $this->getTable()->getPK();
+            if (!isset(self::$relations[$name][$this->$pk])) {
+                if (is_string($rel[2]))
+                    $rel[2] = array('@condition' => $rel[2]);
+                elseif (is_array($rel[2]) && !isset($rel[2]['@condition']))
+                    $rel[2]['@condition'] = $rel[1];
+                $rel[2]['@condition'][$rel[1]] = $this->$pk;
+                self::$relations[$name][$this->$pk] = X3_Module_Table::get($rel[2], 0, $rel[0]);
+            }
+            return self::$relations[$name][$this->$pk];
+        }
         if ($this->table != null && in_array($name, $this->getTable()->getQueries())) {
             return $this->getTable()->getQueries($name);
         }else

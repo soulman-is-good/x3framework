@@ -70,16 +70,25 @@ class X3_MySQLConnection extends X3_Component {
         //return $this->sql;
     }
 
-    public function fetch($sql = null) {
+    public function fetch($sql = null,$cache = false, $duaration = 84600) {
+        if($cache && X3::app()->hasComponent('cache') && false!=($data = X3::cache()->get(md5($sql))))
+            return $data;
         $res = $this->query($sql);
-        if (is_resource($res))
-            return mysql_fetch_assoc($res);
+        if (is_resource($res)){
+            $data = mysql_fetch_assoc($res);
+            if($cache && X3::app()->hasComponent('cache')){
+                X3::cache()->set(md5($sql),$data,$duaration);
+            }
+            return $data;
+        }
         return false;
     }
 
-    public function fetchAll($sql = null) {
+    public function fetchAll($sql = null,$cache = false, $duaration = 84600) {
         $this->connect();
         $data = array();
+        if($cache && X3::app()->hasComponent('cache') && false!=($data = X3::cache()->get(md5($sql))))
+            return $data;
         if (!($query = $this->query($sql)))
             return NULL;
         $query = mysql_query($this->sql, self::$_db);
@@ -89,6 +98,9 @@ class X3_MySQLConnection extends X3_Component {
         }
         while ($data[] = mysql_fetch_assoc($query)) {}
         array_pop($data);
+        if($cache && X3::app()->hasComponent('cache')){
+            X3::cache()->set(md5($sql),$data,$duaration);
+        }
         return $data;
     }
 

@@ -57,6 +57,7 @@ class X3_MongoConnection extends X3_Component {
         $dbname = (isset($config['database']))?$config['database']:'local';
         $connection = new Mongo($server);        
         if($connection===false){
+            return NULL;
             throw new X3_Exception("Could not connect to mongo server", 500);
         }if(false===(self::$_db = $connection->selectDB($dbname))){
             throw new X3_Exception("Could not connect to database", 500);

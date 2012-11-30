@@ -44,6 +44,12 @@ class X3_Mailer extends X3_Component {
         }
         return self::$instance;
     }
+    
+    public function setCopy($cc = array()) {
+        if(is_string($cc))
+            $cc = explode(',',$cc);
+        $this->copy = $cc;
+    }
 
     public function __construct($params = array()) {
         $this->boundary1 = md5(time()).rand(0,9).rand(0,9) . "=_?:";
@@ -117,16 +123,15 @@ class X3_Mailer extends X3_Component {
 
     protected function generateHeaders($from, $reply) {
         $copies = '';
-        foreach ($this->copy as $cc) {
-            $copies .= "Cc: $cc\r\n";
-        }
+        if(count($this->copy)>0)
+            $copies = "\r\nCc: ".implode(', ',$this->copy);
         $header = '';
         if (empty($this->files))
             $header = "Content-Type: multipart/alternative; boundary=\"$this->boundary1\"";
         else
             $header = "Content-Type: multipart/related; boundary=\"$this->boundary1\"\r\nContent-Transfer-Encoding: quoted-printable\r\nContent-Disposition: inline";
         $headers = <<<HEAD
-From: $from 
+From: $from $copies
 Sender: $from
 Reply-To: $reply
 $header

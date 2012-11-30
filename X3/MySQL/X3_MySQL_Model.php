@@ -38,7 +38,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
             $this->module = $module;
             self::$_queries[$tableName] = new X3_Query($tableName, $module);
             if (!in_array($tableName, self::$_tables)) {
-                if ($this->createTable()) {
+                if ($this->createTable() && !X3_LOCKED) {
                     self::$_tables[] = $tableName;
                 }else
                     throw new X3_Exception("$tableName creation failed! Try manualy...", '500');
@@ -46,7 +46,7 @@ class X3_MySQL_Model extends X3_Model implements ArrayAccess {
                 if (empty(self::$_columns[$tableName]))
                     self::$_columns[$tableName] = self::$db->fetchAttributes($tableName);
                 $this->verifyTable();
-                $this->applyStack();
+                !$module->locked && $this->applyStack();
                 $class = get_class($module);
                 //$this->module->_modules[$class] = $this;
             }

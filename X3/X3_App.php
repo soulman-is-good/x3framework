@@ -24,9 +24,6 @@ class X3_App extends X3_Component {
         'db' => array(
             'class' => 'X3_MySQLConnection',
         ),
-        'cache' => array(
-            'class' => 'X3_Cache_File'
-        ),
         'router' => array(
             'class' => 'X3_Router'
         ),
