@@ -248,11 +248,12 @@ return array(false);//TODO: not tested!!!
         }
         if ($asArray){
             $data = $class->getTable()->select('*')->where("`" . $class->getTable()->getPK() . "`='$pk'")->asArray(true);
-            X3::cache()->set($className . $pk , $data,2592000);
+	    if(X3::app()->hasComponent('cache'))
+	            X3::cache()->set($className . $pk , $data,2592000);
             return $data;
         }else{
             $class = $class->getTable()->select('*')->where("`" . $class->getTable()->getPK() . "`='$pk'")->asObject(true);
-            if($class != null){
+            if($class != null && X3::app()->hasComponent('cache')){
                 $data = $class->toArray(true);
                 X3::cache()->set($className . $pk , $data,2592000);
             }
