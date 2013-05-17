@@ -69,6 +69,12 @@ namespace X3 {
                         else
                             throw new \Exception('json functions module isn\'t loaded.');
                         break;
+                    case "xml":
+                        if(function_exists('simplexml_load_file'))
+                            $config = simplexml_load_file($config);
+                        else
+                            throw new \Exception('SimpleXml module isn\'t loaded.');
+                        break;
                     case "php":
                     case "inc":
                         $config = include($config);
