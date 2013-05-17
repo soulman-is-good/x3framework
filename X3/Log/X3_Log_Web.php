@@ -12,6 +12,7 @@
 class X3_Log_Web extends X3_Log {
 
     private $prefix = '[d.m.Y H:i:s] ';
+    private $logs = array();
 
     public function __construct($props) {
         parent::__construct($props['category']);
@@ -19,14 +20,18 @@ class X3_Log_Web extends X3_Log {
             if(property_exists($this, $key))
                 $this->$key = $value;
         }
-
+        $this->addTrigger('onEndApp');
         if(isset($props['prefix']))
             $this->prefix = $props['prefix'];
     }
     public function  processLog($log) {
-        echo date($this->prefix) . $log . "<br/>";
+        $this->logs[] = date($this->prefix) . $log . "<br/>\r\n";
 
         parent::processLog($log);
+    }
+    
+    public function onEndApp(){
+        echo implode('', $this->logs);
     }
 }
 ?>

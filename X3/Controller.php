@@ -1,66 +1,69 @@
 <?php
-
+namespace X3;
 /**
- * X3_Controller
+ * Controller
  *
- * @author soulman
- *
- * 21.11.2010 0:37:08
+ * @author Maxim <i@soulman.kz> Savin
  */
-class X3_Controller extends X3_Component implements X3_Interface_Controller {
+class Controller {
 
-    public $id = null;
-    public $action = null;
-    public $template = null;
-    private $module = null;
+    /**
+     * @var string plain action name 
+     */
+    protected $action = null;
+    /**
+     * @var X3_Renderer 
+     */
+    protected $template = null;
 
-    public function __construct($action, $module=null) {
-        if (empty($action))
-            $action = 'index';
-        $this->action = $action;
-        $this->module = $module;
-        if ($module !== null)
-            $this->id = (string)X3_String::create(get_class($module))->lcfirst();
+    public function __construct($action = null) {
+        if(is_null($action))
+            $this->action = 'index';
         else
-            $this->id = (string)X3_String::create(get_class($this))->lcfirst();
+            $this->action = $action;
+//        $this->template = X3_Renderer::getInstance();
         if (!$this->handleFilters()) {
             $this->redirect(X3::app()->errorController);
         }
-        //TODO: Handling with no module! Check work status
-        if ($module !== null)
-            $this->module->init();
-        else {
-            $this->module = $this;
-            $this->run();
-        }
+//        $this->init();
         return $this;
     }
 
     public function run() {
         $this->fire('beforeAction',array(&$this->action));
-        if($this->action!=null){
-            $action = 'action' . ucfirst($this->action);
-            if (($output = $this->handleCache()) !== false) {
-                $this->fire('onRender',array(&$output));
-                echo $output;
-                $this->fire('afterAction');
-            }else{            
-                $this->module->$action();
-                $this->fire('afterAction');
-            }
+        $action = 'action' . ucfirst($this->action);
+        if (($output = $this->handleCache()) !== false) {
+            $this->fire('onRender',array(&$output));
+            echo $output;
+            $this->fire('afterAction');
+        }else{            
+            $this->$action();
+            $this->fire('afterAction');
         }
     }
-
+    
+    /**
+     * Returns array of definitions. Role->set of actions
+     * @return array e.g. array(
+     *       'allow'=>array(
+     *           '*'=>array('index','show'),
+     *           'creator'=>array('insert'),
+     *           'editor'=>array('insert','update'),
+     *           'admin'=>array('insert','update','delete')
+     *       ),
+     *       'handle'=>'redirect:site/index'
+     *   );
+     */
     public function filter() {
-        return $this->module->filter();
+        return array();
     }
 
     public function route() {
-        return $this->module->route();
+        return array();
     }
 
     public function cache() {
-        return $this->module->cache();
+        return array();
     }
 
     protected function handleFilters() {
@@ -97,7 +100,7 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
                 $nactions = $deny['*'];
                 if(!is_array($nactions)) $nactions = array($nactions);
             }
-            if ((in_array($action, $aactions) || reset($aactions)=='*') && (!in_array($action, $nactions) || reset($nactions)!='*')) {
+            if ((in_array($action, $aactions) || reset($aactions)=='*') || empty($nactions) || (!in_array($action, $nactions) && reset($nactions)!='*')) {
                 return true;
             } else {
                 if (isset($filter['handle'])) {
@@ -164,7 +167,7 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
                             }
                             if (isset($c['expire']))
                                 X3::app()->cache->expire = $c['expire'];
-                            return X3::app()->cache->readCache($this->id,$action);
+                            return X3::app()->cache->readCache($this->getId(),$action);
                         }
                     }
                 }
@@ -172,97 +175,40 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
         }
         return false;
     }
-
-    public function getModule() {
-        return $this->module;
+    /**
+     * Returns view renderer instance
+     * @return X3_Renderer
+     */
+    public function getTemplate() {
+        return $this->template;
     }
 
-    /* public function render($view, $data=null, $return=false,$processOutput=true) {
-      if (($viewFile = $this->getViewFile($view)) !== false){
-      $output = $this->renderPartial($viewFile, $data, true);
-      }else
-      throw new X3_Exception(get_class($this).' не может найти представление "'.$view.'".');
-
-      if (($layoutFile = $this->getLayoutFile($this->layout)) !== false)
-      $output = $this->renderFile($layoutFile, array('content' => $output), true);
-      X3::app()->cs->render($output);
-      if ($processOutput)
-      $output = $this->processOutput($output);
-      if ($return)
-      return $output;
-      else
-      echo $output;
-      }
-      public function renderPartial($view, $data=null,$return=false) {
-      if(!is_file($view))
-      $view = $this->resolveViewFile($view);
-      $output = $this->renderFile($view, $data, true);
-      if ($return)
-      return $output;
-      else
-      echo $output;
-
-      }
-
-      public function renderFile($viewFile, $data=null, $return=false) {
-      $content=$this->renderInternal($viewFile, $data, $return);
-      return $content;
-      }
-
-      public function renderInternal($_viewFile_, $_data_=null, $_return_=false) {
-      if (is_array($_data_))
-      extract($_data_, EXTR_PREFIX_SAME, 'data');
-      else
-      $data=$_data_;
-      if ($_return_) {
-      ob_start();
-      ob_implicit_flush(false);
-      require($_viewFile_);
-      return ob_get_clean();
-      }
-      else
-      require($_viewFile_);
-      }
-
-      public function getViewFile($viewName) {
-      return $this->resolveViewFile($viewName);
-      }
-
-      public function getLayoutFile($viewName) {
-      return $this->resolveLayoutFile($viewName);
-      }
-
-      public function resolveViewFile($viewFile) {
-      $path = X3::app()->getPathFromAlias($viewFile);
-      if (!is_file($path))
-      $viewPath = X3::app()->basePath . DIRECTORY_SEPARATOR . X3::app()->APPLICATION_DIR
-      . DIRECTORY_SEPARATOR . X3::app()->VIEWS_DIR . DIRECTORY_SEPARATOR . $this->id
-      . DIRECTORY_SEPARATOR . $path . '.php';
-      else
-      $viewPath = $path;
-      if(!is_file($viewPath))
-      throw new X3_Exception ("Could not open view file '$viewPath'!", X3::FILE_IO_ERROR);
-      return $viewPath;
-      }
-
-      public function resolveLayoutFile($viewFile) {
-      $path = X3::app()->getPathFromAlias($viewFile);
-      if (!is_file($path))
-      $viewPath = X3::app()->basePath . DIRECTORY_SEPARATOR . X3::app()->APPLICATION_DIR
-      . DIRECTORY_SEPARATOR . X3::app()->VIEWS_DIR . DIRECTORY_SEPARATOR . X3::app()->LAYOUTS_DIR
-      . DIRECTORY_SEPARATOR . $path . '.php';
-      else
-      $viewPath = $path;
-      if(!is_file($viewPath))
-      throw new X3_Exception ("Could not open layout file '$viewPath'!", X3::FILE_IO_ERROR);
-      return $viewPath;
-      }
-
-      public function processOutput($output) {
-      return $output;
-      } */
+    /**
+     * @return string plain controller's name
+     */
+    public function getId() {
+        return (string)X3_String::create(get_class())->lcfirst();
+    }
 
     /**
+     * @return string plain action's name
+     */
+    public function getAction() {
+        return $this->action;
+    }
+    
+    /**
+     * @param string $action link to an action property before it get handled as a function
+     */
+    public function beforeAction($action) {}
+    /**
+     * Here must be implemented code to be done after action's
+     * @return boolean 
+     */
+    public function afterAction() {}
+
+    /**
+     * $statusCode could be
      *    300 Multiple Choices (Множество выборов).
      *    301 Moved Permanently (Перемещено окончательно).
      *    302 Found (Найдено).
@@ -281,10 +227,17 @@ class X3_Controller extends X3_Component implements X3_Interface_Controller {
             exit(0);
     }
 
+    /**
+     * Refreshes current page
+     */
     public function refresh() {
         $this->redirect($_SERVER['REQUEST_URI'],true,302);
     }
-
+    
+    /**
+     * Alias to refresh() method
+     * @see refresh() method
+     */
     public function reload() {
         $this->refresh();
     }

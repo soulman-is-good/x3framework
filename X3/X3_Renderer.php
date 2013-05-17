@@ -13,7 +13,6 @@
 class X3_Renderer extends X3_Component {
 
     protected static $_renderer;
-    public $module = null;
     public $layout = 'main';
     protected $data = array();
     protected $_process = array();
@@ -24,16 +23,7 @@ class X3_Renderer extends X3_Component {
         }
         return self::$_renderer;
     }
-
-    public function __construct($class = null) {
-        if (is_object($class))
-            $this->module = $class;
-        elseif (is_string($class) && class_exists($class))
-            $this->module = new $class;
-        else
-            parent::__construct ($class);
-    }
-
+    
     public function addData($key, $value = null) {
         if (is_array($key)) {
             $this->data = array_extend($this->data, $key);
@@ -80,13 +70,17 @@ class X3_Renderer extends X3_Component {
     }
 
     public function renderInternal($_viewFile_, $_data_ = null, $_return_ = false) {
-        // we use special variable names here to avoid conflict when extracting data
         if (is_array($_data_)) {
             $_data_ = $_data_ + $this->data;
-            extract($_data_, EXTR_PREFIX_SAME, 'data');
-            //extract($this->data, EXTR_PREFIX_SAME, 'data');
-        }else
+        }else{
+            $data = $this->data;
+        }
+        $_data_['_this'] = X3::app()->module;
+        if (is_array($_data_)) 
+            extract($_data_, EXTR_PREFIX_SAME,'data');
+        else
             $data = $_data_;
+        
         if ($_return_) {
             ob_start();
             ob_implicit_flush(false);
@@ -101,12 +95,12 @@ class X3_Renderer extends X3_Component {
         $path = X3::app()->getPathFromAlias($viewFile,true);
         if (!is_file($path))
             $viewPath = X3::app()->basePath . DIRECTORY_SEPARATOR . X3::app()->APPLICATION_DIR
-                    . DIRECTORY_SEPARATOR . X3::app()->VIEWS_DIR . DIRECTORY_SEPARATOR . $this->module->controller->id
+                    . DIRECTORY_SEPARATOR . X3::app()->VIEWS_DIR . DIRECTORY_SEPARATOR . X3::app()->module->id
                     . DIRECTORY_SEPARATOR . $path . '.php';
         else
             $viewPath = $path;
         if (!is_file($viewPath))
-            throw new X3_Exception("Could not open view file '$viewPath'!", X3::FILE_IO_ERROR);
+            throw new X3_Exception("Could not open view file '$viewPath'!", 500);
         return $viewPath;
     }
 
@@ -120,7 +114,6 @@ class X3_Renderer extends X3_Component {
             $viewPath = $path;
         if (!is_file($viewPath))
             return false;
-        //throw new X3_Exception ("Could not open layout file '$viewPath'!", X3::FILE_IO_ERROR);
         return $viewPath;
     }
 
@@ -135,19 +128,6 @@ class X3_Renderer extends X3_Component {
         $this->_process = array();
         return $output;
     }
-
-    public function __get($name) {
-        if (isset($this->module->$name))
-            return $this->module->$name;
-        return parent::__get($name);
-    }
-
-    public function __call($name, $params) {
-        if (method_exists($this->module, $name))
-            return call_user_func_array(array($this->module, $name), $params);
-        return parent::__call($name, $params);
-    }
-
 }
 
 ?>

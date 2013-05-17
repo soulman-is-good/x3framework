@@ -30,6 +30,13 @@ class X3_String extends X3_Component {
         }
     }
 
+    /**
+     * X3_String factory
+     * 
+     * @param string $string
+     * @param string $encoding encoding, default is UTF-8
+     * @return X3_String
+     */
     public static function create($string, $encoding = null) {
         return new self($string, $encoding);
     }

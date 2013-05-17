@@ -1,15 +1,10 @@
 <?php
-/* 
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 /**
- * Description of X3_Model
+ * X3_Mongo_Connection
  *
- * @author Soul_man
+ * @author Maxim <i@soulman.kz> Savin
  */
-class X3_MongoConnection extends X3_Component {
+class X3_Mongo_Connection extends X3_DbConnection {
 
     protected static $_db = NULL;
 
@@ -64,9 +59,8 @@ class X3_MongoConnection extends X3_Component {
         }
     }
 
-    public function validate() {
-        //$this->sql = mysql_escape_string($this->sql); // strange it is not working
-        return $this->sql;
+    public function validateQuery($query = null) {
+        return $this->sql = $query;
     }
 
     public function fetch($sql=null) {
@@ -146,6 +140,10 @@ class X3_MongoConnection extends X3_Component {
     public function getErrors() {
         if(($msg=mysql_error(self::$_db))=="") $msg = false;
         return $msg;
+    }
+
+    public function count() {
+        
     }
 }
 ?>

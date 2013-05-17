@@ -398,13 +398,6 @@ class X3_ClientScript extends X3_Component
 	 * @param string ID that uniquely identifies this piece of JavaScript code
 	 * @param string the javascript code
 	 * @param integer the position of the JavaScript code. Valid values include the following:
-	 * <ul>
-	 * <li>CClientScript::POS_HEAD : the script is inserted in the head section right before the title element.</li>
-	 * <li>CClientScript::POS_BEGIN : the script is inserted at the beginning of the body section.</li>
-	 * <li>CClientScript::POS_END : the script is inserted at the end of the body section.</li>
-	 * <li>CClientScript::POS_LOAD : the script is inserted in the window.onload() function.</li>
-	 * <li>CClientScript::POS_READY : the script is inserted in the jQuery's ready function.</li>
-	 * </ul>
 	 */
 	public function registerScript($id,$script,$position=self::POS_READY)
 	{
